@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>Mechanism</title>
+    <link rel="stylesheet" href="styles.css" charset="utf-8" />
+  </head>
+  <body id="context">
+    <div id="area" style="padding:10px; background-color: green;">
+      <canvas id="canvas" width="800" height="300" style="background-color:#333333;" >Браузер не показывает canvas</canvas>
+    </div>
+    <form id="dashboard">
+      <textarea id="current-state"></textarea>
+      <button onclick="editor.load(current-state)">Загрузить</button>
+    </form>
+  </body>
+  <script type="text/javascript" src="paper.js"></script>
+  <script type="text/javascript" src="Box2dWeb-2.1.a.3.js"></script>
+  <script type="text/javascript" src="mech2.js"></script>
+</html>

@@ -1,0 +1,611 @@
+/**
+ * @type editor
+ */
+var editor = (function() {
+  // box2d aliases
+  var b2Vec2 = Box2D.Common.Math.b2Vec2, b2AABB = Box2D.Collision.b2AABB, b2BodyDef = Box2D.Dynamics.b2BodyDef, b2Body = Box2D.Dynamics.b2Body, b2FixtureDef = Box2D.Dynamics.b2FixtureDef, b2Fixture = Box2D.Dynamics.b2Fixture, b2World = Box2D.Dynamics.b2World, b2MassData = Box2D.Collision.Shapes.b2MassData, b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape, b2CircleShape = Box2D.Collision.Shapes.b2CircleShape, b2DebugDraw = Box2D.Dynamics.b2DebugDraw, b2MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef, b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
+
+  window.requestAnimFrame = (function() {
+    return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame
+        || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback, element) {
+          window.setTimeout(callback, 1000 / 60);
+        };
+  })();
+
+  var SCALE, canvas, ctx, world, fixDef, selectedBody, shapes = [];
+
+  var debug = true;
+
+  /**
+   * @memberOf editor
+   */
+  var mouse = {
+    x: 0,
+    y: 0,
+    isDown: false,
+    isCtrl: false,
+    joint: null,
+    pVec: null
+  }
+
+  /**
+   * @memberOf editor
+   */
+  var init = {
+    /**
+     * @memberOf init
+     */
+    start: function(id, scale) {
+      canvas = document.getElementById(id);
+      ctx = canvas.getContext("2d");
+      SCALE = scale || 20;
+
+      box2d.create.world();
+      box2d.create.defaultFixture();
+
+      this.surroundings.leftWall();
+      this.surroundings.rightWall();
+      this.surroundings.ground();
+
+      this.callbacks();
+
+      loop.process();
+    },
+    surroundings: {
+      /**
+       * @memberOf surroundings
+       */
+      rightWall: function() {
+        add.box({
+          x: canvas.width / SCALE,
+          y: canvas.height / SCALE / 2,
+          height: canvas.height / SCALE,
+          width: 2,
+          isStatic: true
+        });
+      },
+      ground: function() {
+        add.edge({
+          x: 0,
+          y: canvas.height / SCALE,
+          long: canvas.width / SCALE,
+          isStatic: true
+        });
+      },
+      leftWall: function() {
+        add.box({
+          x: 0,
+          y: canvas.height / SCALE / 2,
+          height: canvas.height / SCALE,
+          width: 2,
+          isStatic: true
+        });
+      }
+    },
+    callbacks: function() {
+      var canvasPosition = helpers.getElementPosition(canvas);
+
+      canvas.addEventListener('click', function(e) {
+        mechanism.onClick();
+      }, false);
+
+      canvas.addEventListener('mousemove', function(e) {
+        mouse.x = (e.clientX - canvasPosition.x) / SCALE;
+        mouse.y = (e.clientY - canvasPosition.y) / SCALE;
+      }, false);
+
+      canvas.addEventListener('mousedown', function(e) {
+        mouse.isDown = true;
+        mouse.isCtrl = e.ctrlKey;
+      }, false);
+
+      canvas.addEventListener('mouseup', function(e) {
+        mouse.isDown = false;
+        mouse.isCtrl = false;
+      }, false);
+
+      var keyCodes = {
+        DEL: 46,
+        SHIFT: 16
+      }
+
+      document.onkeyup = function key(e) {
+        switch (e.keyCode) {
+          case keyCodes.DEL:
+            mechanism.onDelete();
+            break;
+        }
+      }
+    }
+  };
+  /**
+   * 
+   * @memberOf editor
+   */
+  var add = {
+    /**
+     * @memberOf add
+     */
+    circle: function(options) {
+      var shape = new Circle(options);
+      shapes.push(shape);
+      box2d.addToWorld(shape);
+    },
+    box: function(options) {
+      var shape = new Box(options);
+      shapes.push(shape);
+      box2d.addToWorld(shape);
+    },
+    edge: function(options) {
+      var shape = new Edge(options);
+      shapes.push(shape);
+      box2d.addToWorld(shape);
+    }
+  }
+
+  /**
+   * @memberOf editor
+   */
+  var box2d = {
+    /**
+     * @memberOf box2d
+     */
+    addToWorld: function(shape) {
+      var bodyDef = this.create.bodyDef(shape);
+      var body = world.CreateBody(bodyDef);
+      if (shape instanceof Circle || shape instanceof mechanism.point) {
+        fixDef.shape = new b2CircleShape(shape.radius);
+      } else if (shape instanceof Box) {
+        fixDef.shape = new b2PolygonShape;
+        fixDef.shape.SetAsBox(shape.width / 2, shape.height / 2);
+      } else if (shape instanceof Edge) {
+        fixDef.shape = new b2PolygonShape;
+        fixDef.shape.SetAsEdge(new b2Vec2(0, 0), new b2Vec2(shape.long, 0));
+      } else if (shape instanceof mechanism.edge) {
+        fixDef.shape = new b2PolygonShape;
+        var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2, (shape.p1.y + shape.p2.y) / 2);
+        var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y - shape.p2.y).normalize(shape.width);
+        var pp1 = paperPoint.rotate(90);
+        var pp2 = paperPoint.rotate(-90);
+        fixDef.shape.SetAsArray([new b2Vec2(shape.p1.x - middleP.x, shape.p1.y - middleP.y), new b2Vec2(pp1.x, pp1.y),
+            new b2Vec2(shape.p2.x - middleP.x, shape.p2.y - middleP.y), new b2Vec2(pp2.x, pp2.y)]);
+      }
+
+      body.CreateFixture(fixDef);
+      return body;
+    },
+    create: {
+      /**
+       * @memberOf create
+       */
+      world: function() {
+        world = new b2World(new b2Vec2(0, 0), true);
+
+        if (debug) {
+          var debugDraw = new b2DebugDraw();
+          debugDraw.SetSprite(ctx);
+          debugDraw.SetDrawScale(SCALE);
+          debugDraw.SetFillAlpha(0.5);
+          debugDraw.SetLineThickness(1.0);
+          debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
+          world.SetDebugDraw(debugDraw);
+        }
+      },
+      defaultFixture: function() {
+        fixDef = new b2FixtureDef;
+        fixDef.density = 10.0; // плотность
+        fixDef.friction = 1; // трение
+        fixDef.restitution = 0.0; // упругость
+      },
+      bodyDef: function(shape) {
+        var bodyDef = new b2BodyDef;
+        if (shape.isStatic == true) {
+          bodyDef.type = b2Body.b2_staticBody;
+        } else {
+          bodyDef.type = b2Body.b2_dynamicBody;
+        }
+        bodyDef.position.x = shape.x;
+        bodyDef.position.y = shape.y;
+        bodyDef.userData = shape.id;
+        bodyDef.angle = shape.angle;
+
+        return bodyDef;
+      }
+    },
+    get: {
+      /**
+       * @memberOf get
+       */
+      bodySpec: function(b) {
+        return {
+          x: b.GetPosition().x,
+          y: b.GetPosition().y,
+          angle: b.GetAngle(),
+          center: {
+            x: b.GetWorldCenter().x,
+            y: b.GetWorldCenter().y
+          },
+          element: b.GetUserData()
+        };
+      },
+      bodyAtMouse: function(dynamicOnly) {
+        var getBodyCB = function(fixture) {
+          if (!dynamicOnly || fixture.GetBody().GetType() != b2Body.b2_staticBody) {
+            if (fixture.GetShape().TestPoint(fixture.GetBody().GetTransform(), mousePVec)) {
+              selectedBody = fixture.GetBody();
+              return false;
+            }
+          }
+          return true;
+        }
+
+        var mousePVec = new b2Vec2(mouse.x, mouse.y);
+        var aabb = new b2AABB();
+        aabb.lowerBound.Set(mouse.x - 0.001, mouse.y - 0.001);
+        aabb.upperBound.Set(mouse.x + 0.001, mouse.y + 0.001);
+        selectedBody = null;
+        world.QueryAABB(getBodyCB, aabb);
+        return selectedBody;
+      }
+
+    }
+  };
+
+  /**
+   * @memberOf editor
+   */
+  var loop = {
+    /**
+     * @memberOf loop
+     */
+    process: function() {
+      loop.step();
+      loop.update();
+      loop.draw();
+      requestAnimFrame(loop.process);
+    },
+    step: function() {
+      var stepRate = 1 / 60;
+      world.Step(stepRate, 10, 10);
+      world.ClearForces();
+    },
+    update: function() {
+      for ( var b = world.GetBodyList(); b; b = b.m_next) {
+        if (b.IsActive() && typeof b.GetUserData() !== 'undefined' && b.GetUserData() != null) {
+          //shapes[b.GetUserData()].update(box2d.get.bodySpec(b));
+        }
+      }
+    },
+    draw: function() {
+      if (debug){
+        world.DrawDebugData();
+      } else {        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      for (var i in shapes) {
+        shapes[i].draw();
+      }
+    }
+  };
+
+  /**
+   * @memberOf editor
+   */
+  var helpers = {
+    /**
+     * @memberOf helpers
+     */
+    counter: (function() {
+      var currentCount = 0;
+      return function() {
+        return ++currentCount;
+      };
+    })(),
+    randomColor: function() {
+      var letters = '0123456789ABCDEF'.split(''), color = '#';
+      for ( var i = 0; i < 6; i++) {
+        color += letters[Math.round(Math.random() * 15)];
+      }
+      return color;
+    },
+    // http://js-tut.aardon.de/js-tut/tutorial/position.html
+    getElementPosition: function(element) {
+      var elem = element, tagname = "", x = 0, y = 0;
+
+      while ((typeof (elem) == "object") && (typeof (elem.tagName) != "undefined")) {
+        y += elem.offsetTop;
+        x += elem.offsetLeft;
+        tagname = elem.tagName.toUpperCase();
+
+        if (tagname == "BODY")
+          elem = 0;
+
+        if (typeof (elem) == "object") {
+          if (typeof (elem.offsetParent) == "object")
+            elem = elem.offsetParent;
+        }
+      }
+
+      return {
+        x: x,
+        y: y
+      };
+    }
+  };
+  /**
+   * @memberOf editor
+   */
+  var Shape = function(v) {
+    this.id = helpers.counter();
+    this.x = v.x || 0;
+    this.y = v.y || 0;
+    this.angle = v.angle || 0;
+    this.color = helpers.randomColor();
+    this.center = {
+      x: null,
+      y: null
+    };
+    this.isStatic = v.isStatic || false;
+
+    this.update = function(options) {
+      this.angle = options.angle;
+      this.center = options.center;
+      this.x = options.x;
+      this.y = options.y;
+    };
+  };
+  /**
+   * @memberOf editor
+   */
+  var Edge = function(options) {
+    Shape.call(this, options);
+
+    this.long = options.long || 1;
+    this.draw = function() {
+      ctx.save();
+      ctx.translate(this.x * SCALE, this.y * SCALE);
+      ctx.rotate(this.angle);
+      ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
+
+      ctx.strokeStyle = this.color;
+   
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(this.x * SCALE, this.y * SCALE);
+      ctx.lineTo(this.long * SCALE, this.y * SCALE);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    };
+  };
+  Edge.prototype = Object.create(Shape.prototype);
+  /**
+   * @memberOf editor
+   */
+  var Circle = function(options) {
+    Shape.call(this, options);
+    this.radius = options.radius || 1;
+
+    this.draw = function() {
+      ctx.save();
+      ctx.translate(this.x * SCALE, this.y * SCALE);
+      ctx.rotate(this.angle);
+      ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
+
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x * SCALE, this.y * SCALE, this.radius * SCALE, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    };
+  };
+  Circle.prototype = Object.create(Shape.prototype);
+  /**
+   * @memberOf editor
+   */
+  var Box = function(options) {
+    Shape.call(this, options);
+    this.width = options.width || 1;
+    this.height = options.height || 1;
+
+    this.draw = function() {
+      ctx.save();
+      ctx.translate(this.x * SCALE, this.y * SCALE);
+      ctx.rotate(this.angle);
+      ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
+      ctx.fillStyle = this.color;
+      ctx.fillRect((this.x - (this.width / 2)) * SCALE, (this.y - (this.height / 2)) * SCALE, this.width * SCALE,
+          this.height * SCALE);
+      ctx.restore();
+    };
+  };
+  Box.prototype = Object.create(Shape.prototype);
+  
+  /**
+   * @memberOf editor
+   */
+  var mechanism = (function() {
+    /**
+     * @memberOf mechanism
+     */
+    var pointTypes = {
+      fixed: 0,
+      clockwiseFixed: 1,
+      joint: 2
+    };
+    var edgeWidth = 0.5;
+    var elements = [], selectedElements = [];
+    /**
+     * @memberOf mechanism
+     */
+    var Element = function(options) {
+      Shape.apply(this, arguments);
+      this.body = options.body || null;
+      this.selected = options.selected || false;      
+    }
+    
+    Element.prototype = Object.create(Shape.prototype);
+
+    Element.prototype.select = function() {
+      if (selectedElements.indexOf(this) == -1) {
+        selectedElements.push(this);
+        if (selectedElements.length == 2 && selectedElements[0] instanceof Point
+            && selectedElements[1] instanceof Point) {
+          mechanism.createEdge(selectedElements[0], selectedElements[1]);
+          selectedElements = [];
+        }
+      }
+    };
+    
+    
+
+    /**
+     * @memberOf mechanism
+     */
+    var Point = function(options) {
+      Element.apply(this, arguments);
+    //  this.x = options.x;
+    //  this.y = options.y;
+      this.type = options.type || pointTypes.joint;
+      this.radius = options.radius || 1;
+      this.edges = [];
+      elements.push(this);
+    };
+    Point.prototype = Object.create(Element.prototype);
+    Point.prototype.radius = 1;
+    Point.prototype.setPosition = function(x, y) {
+      this.x = x;
+      this.y = y;
+      this.body.SetPosition(new b2Vec2(x, y));
+    };
+    Point.prototype.refreshPosition = function() {
+      var pos = this.body.GetPosition();
+      point.x = pos.x;
+      point.y = pos.y;
+    };
+    Point.prototype.destroy = function() {
+      world.DestroyBody(this.body);
+      var index = elements.indexOf(this);
+      elements.splice(index, 1);
+      var edgesCopy = this.edges.slice();
+      for ( var i in edgesCopy) {
+        edgesCopy[i].destroy();
+      }
+    };
+
+    /**
+     * @memberOf mechanism
+     */
+    var Edge = function(options) {
+      Element.apply(this, arguments);
+      this.p1 = options.p1;
+      this.p2 = options.p2;
+    };
+    Edge.prototype = Object.create(Element.prototype);
+    Edge.prototype.width = 0.5;
+    Edge.prototype.removeFromPoints = function() {
+      var index = this.p1.edges.indexOf(this);
+      this.p1.edges.splice(index, 1);
+      index = this.p2.edges.indexOf(this);
+      this.p2.edges.splice(index, 1);
+    };
+    Edge.prototype.destroy = function() {
+      world.DestroyBody(this.body);
+      var index = elements.indexOf(this);
+      elements.splice(index, 1);
+      this.removeFromPoints;
+    };
+
+    var createPoint = function(options) {
+      options.radius = 1;
+      var point = new Point(options);
+      var body = box2d.addToWorld(point);
+      point.body = body;
+    };
+    var createEdge = function(p1, p2) {
+      if (getEdgeBetweenPoints(p1, p2))
+        return;
+
+      p1.refreshPosition();
+      p2.refreshPosition();
+
+      var edge = new Edge({
+        p1: p1,
+        p2: p2
+      });
+      var body = box2d.addToWorld(edge);
+      edge.body = body;
+    };
+    var getEdgeBetweenPoints = function(p1, p2) {
+      for ( var i in p1.edges) {
+        if (edges[i].point1 == p2 || edges[i].point2 == p2)
+          return edges[i];
+      }
+    };
+    var getElementOfBody = function(body) {
+      if (body) {
+        var element;
+        for (var i in elements) {
+          if (elements[i].body == body) {
+            element = elements[i];
+            break;
+          }
+        }
+        return element;
+      }
+    };
+    getEdgeBetweenPoints = function(p1, p2) {
+      for ( var i in p1.edges) {
+        if (elements[i].point1 == p2 || elements[i].point2 == p2)
+          return elements[i];
+      }
+    };
+    join = function(point, edge) {
+      var joint = new b2RevoluteJointDef();
+      joint.Initialize(point.body, edge.body, point.body.GetWorldCenter());
+      world.CreateJoint(joint);
+    };
+
+    return {
+      onClick: function() {
+        var body = box2d.get.bodyAtMouse();
+        if (body) {
+          var element = getElementOfBody(body);
+          if (element) {
+            if (element instanceof Point) {
+              element.setPosition({
+                x: mouse.x,
+                y: mouse.y
+              });
+
+              element.select();
+            }
+          }
+        } else {
+          createPoint({
+            x: mouse.x,
+            y: mouse.y
+          });
+          selectedElements = [];
+        }
+      },
+      onDelete: function() {
+        if (selectedElements[0]) {
+          getElementOfBody(selectedBody).destroy();
+          selectedElements = [];
+        }
+      },
+      draw: function() {
+        for(var i in elements){
+          elements[i].draw();
+        }
+      },
+      point: Point,
+      edge: Edge
+
+    };
+  })();
+
+  init.start('canvas');
+})();
