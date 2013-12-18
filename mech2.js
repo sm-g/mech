@@ -13,6 +13,7 @@ var editor = (function() {
   })();
 
   var SCALE, canvas, ctx, world, fixDef, selectedBody;
+  var buttons = {};
 
   var debug = true;
 
@@ -37,6 +38,10 @@ var editor = (function() {
      */
     start: function(id, scale) {
       canvas = document.getElementById(id);
+      buttons.play = document.getElementById("play");
+      buttons.pause = document.getElementById("pause");
+      buttons.stop = document.getElementById("stop");
+      
       ctx = canvas.getContext("2d");
       SCALE = scale || 20;
 
@@ -50,6 +55,14 @@ var editor = (function() {
     callbacks: function() {
       var canvasPosition = helpers.getElementPosition(canvas);
 
+      buttons.play.addEventListener('click', function(e) {
+        mechanism.start();
+      }, false);
+      
+      buttons.pause.addEventListener('click', function(e) {
+        mechanism.pause();
+      }, false);
+      
       canvas.addEventListener('click', function(e) {
         mechanism.onClick();
       }, false);
@@ -123,7 +136,7 @@ var editor = (function() {
        * @memberOf create
        */
       world: function() {
-        world = new b2World(new b2Vec2(1, 0), true);
+        world = new b2World(new b2Vec2(0, 0), false);
 
         if (debug) {
           var debugDraw = new b2DebugDraw();
@@ -379,6 +392,7 @@ var editor = (function() {
     };
     var edgeWidth = 0.5;
     var elements = [], selectedElements = [];
+    var frozen = true;
     /**
      * @memberOf mechanism
      */
@@ -538,7 +552,7 @@ var editor = (function() {
     return {
       onClick: function() {
         var body = box2d.get.bodyAtMouse();
-        if (!body) {
+        if (frozen && !body) {
           // клик по пустому месту - добавляем точку
           createPoint({
             x: mouse.x,
@@ -549,7 +563,7 @@ var editor = (function() {
       },
       onDown: function() {
         var body = box2d.get.bodyAtMouse();
-        if (body) {
+        if (frozen && body) {
           var element = getElementOfBody(body);
           if (element) {
             if (element instanceof Point) {
@@ -575,7 +589,7 @@ var editor = (function() {
        // selectedElements
       },
       onMove: function() {
-        if (mouse.isDown) {
+        if (frozen && mouse.isDown) {
           var body = box2d.get.bodyAtMouse();
           if (body) {
             var element = getElementOfBody(body);
@@ -591,7 +605,7 @@ var editor = (function() {
         }
       },
       onDelete: function() {
-        if (selectedElements[0]) {
+        if (frozen && selectedElements[0]) {
           getElementOfBody(selectedBody).destroy();
           selectedElements = [];
         }
@@ -605,6 +619,17 @@ var editor = (function() {
       edge: Edge,
       shapeAt: function(id) {
         return elements[id];
+      },
+      start: function() {
+        frozen = false;
+        world.SetGravity(new b2Vec2(0, 2));
+      },
+      pause: function() {
+        frozen = true;
+        world.SetGravity(new b2Vec2(0, 0));
+        for(var i in elements) {          
+          elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
+        }
       }
 
     };
