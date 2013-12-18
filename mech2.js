@@ -57,16 +57,19 @@ var editor = (function() {
       canvas.addEventListener('mousemove', function(e) {
         mouse.x = (e.clientX - canvasPosition.x) / SCALE;
         mouse.y = (e.clientY - canvasPosition.y) / SCALE;
+        mechanism.onMove();
       }, false);
 
       canvas.addEventListener('mousedown', function(e) {
         mouse.isDown = true;
         mouse.isCtrl = e.ctrlKey;
+        mechanism.onDown();
       }, false);
 
       canvas.addEventListener('mouseup', function(e) {
         mouse.isDown = false;
         mouse.isCtrl = false;
+        mechanism.onUp();
       }, false);
 
       var keyCodes = {
@@ -120,7 +123,7 @@ var editor = (function() {
        * @memberOf create
        */
       world: function() {
-        world = new b2World(new b2Vec2(0, 0), true);
+        world = new b2World(new b2Vec2(1, 0), true);
 
         if (debug) {
           var debugDraw = new b2DebugDraw();
@@ -134,9 +137,9 @@ var editor = (function() {
       },
       defaultFixture: function() {
         fixDef = new b2FixtureDef;
-        fixDef.density = 10.0; // ���������
-        fixDef.friction = 1; // ������
-        fixDef.restitution = 0.0; // ���������
+        fixDef.density = 10.0; // плотность
+        fixDef.friction = 1; // трение
+        fixDef.restitution = 0.0; // упругость
       },
       bodyDef: function(shape) {
         var bodyDef = new b2BodyDef;
@@ -216,6 +219,7 @@ var editor = (function() {
           mechanism.shapeAt(b.GetUserData()).update(box2d.get.bodySpec(b));
         }
       }
+
     },
     draw: function() {
       if (debug){
@@ -388,12 +392,7 @@ var editor = (function() {
 
     Element.prototype.select = function() {
       if (selectedElements.indexOf(this) == -1) {
-        selectedElements.push(this);
-        if (selectedElements.length == 2 && selectedElements[0] instanceof Point
-            && selectedElements[1] instanceof Point) {
-          createEdge(selectedElements[0], selectedElements[1]);
-          selectedElements = [];
-        }
+        selectedElements.push(this);        
       }
     };
     
@@ -539,24 +538,56 @@ var editor = (function() {
     return {
       onClick: function() {
         var body = box2d.get.bodyAtMouse();
-        if (body) {
-          var element = getElementOfBody(body);
-          if (element) {
-            if (element instanceof Point) {
-              element.setPosition(
-                mouse.x,
-                mouse.y
-              );
-
-              element.select();
-            }
-          }
-        } else {
+        if (!body) {
+          // клик по пустому месту - добавляем точку
           createPoint({
             x: mouse.x,
             y: mouse.y
           });
           selectedElements = [];
+        }
+      },
+      onDown: function() {
+        var body = box2d.get.bodyAtMouse();
+        if (body) {
+          var element = getElementOfBody(body);
+          if (element) {
+            if (element instanceof Point) {
+              // выделяем точку
+              element.setPosition(
+              mouse.x,
+              mouse.y
+              );
+              
+              element.select();
+              
+              if (selectedElements.length == 2 && selectedElements[0] instanceof Point
+              && selectedElements[1] instanceof Point) {
+                // два точки выделены - добавляем между ними ребро
+                createEdge(selectedElements[0], selectedElements[1]);
+                selectedElements = [];
+              }
+            }
+          }
+        }
+      },
+      onUp: function() {
+       // selectedElements
+      },
+      onMove: function() {
+        if (mouse.isDown) {
+          var body = box2d.get.bodyAtMouse();
+          if (body) {
+            var element = getElementOfBody(body);
+            if (element) {
+              if (element instanceof Point) {
+                element.setPosition(
+                mouse.x,
+                mouse.y
+                );
+              }
+            }
+          }
         }
       },
       onDelete: function() {
