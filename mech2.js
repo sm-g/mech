@@ -43,44 +43,9 @@ var editor = (function() {
       box2d.create.world();
       box2d.create.defaultFixture();
 
-      this.surroundings.leftWall();
-      this.surroundings.rightWall();
-      this.surroundings.ground();
-
       this.callbacks();
 
       loop.process();
-    },
-    surroundings: {
-      /**
-       * @memberOf surroundings
-       */
-      rightWall: function() {
-        add.box({
-          x: canvas.width / SCALE,
-          y: canvas.height / SCALE / 2,
-          height: canvas.height / SCALE,
-          width: 2,
-          isStatic: true
-        });
-      },
-      ground: function() {
-        add.edge({
-          x: 0,
-          y: canvas.height / SCALE,
-          long: canvas.width / SCALE,
-          isStatic: true
-        });
-      },
-      leftWall: function() {
-        add.box({
-          x: 0,
-          y: canvas.height / SCALE / 2,
-          height: canvas.height / SCALE,
-          width: 2,
-          isStatic: true
-        });
-      }
     },
     callbacks: function() {
       var canvasPosition = helpers.getElementPosition(canvas);
@@ -118,30 +83,6 @@ var editor = (function() {
       }
     }
   };
-  /**
-   * 
-   * @memberOf editor
-   */
-  var add = {
-    /**
-     * @memberOf add
-     */
-    circle: function(options) {
-      var shape = new Circle(options);
-      shapes.push(shape);
-      box2d.addToWorld(shape);
-    },
-    box: function(options) {
-      var shape = new Box(options);
-      shapes.push(shape);
-      box2d.addToWorld(shape);
-    },
-    edge: function(options) {
-      var shape = new Edge(options);
-      shapes.push(shape);
-      box2d.addToWorld(shape);
-    }
-  }
 
   /**
    * @memberOf editor
@@ -478,7 +419,7 @@ var editor = (function() {
       this.x = x;
       this.y = y;
       this.body.SetPosition(new b2Vec2(x, y));
-    };
+    };    
     Point.prototype.refreshPosition = function() {
       var pos = this.body.GetPosition();
       point.x = pos.x;
