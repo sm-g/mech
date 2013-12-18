@@ -298,7 +298,7 @@ var editor = (function() {
     counter: (function() {
       var currentCount = 0;
       return function() {
-        return ++currentCount;
+        return currentCount++;
       };
     })(),
     randomColor: function() {
@@ -574,10 +574,10 @@ var editor = (function() {
           var element = getElementOfBody(body);
           if (element) {
             if (element instanceof Point) {
-              element.setPosition({
-                x: mouse.x,
-                y: mouse.y
-              });
+              element.setPosition(
+                mouse.x,
+                mouse.y
+              );
 
               element.select();
             }
