@@ -12,7 +12,7 @@ var editor = (function() {
         };
   })();
 
-  var SCALE, canvas, ctx, world, fixDef, selectedBody, shapes = [];
+  var SCALE, canvas, ctx, world, fixDef, selectedBody;
 
   var debug = true;
 
@@ -213,7 +213,7 @@ var editor = (function() {
     update: function() {
       for ( var b = world.GetBodyList(); b; b = b.m_next) {
         if (b.IsActive() && typeof b.GetUserData() !== 'undefined' && b.GetUserData() != null) {
-          //shapes[b.GetUserData()].update(box2d.get.bodySpec(b));
+          mechanism.shapeAt(b.GetUserData()).update(box2d.get.bodySpec(b));
         }
       }
     },
@@ -223,9 +223,7 @@ var editor = (function() {
       } else {        
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
-      for (var i in shapes) {
-        shapes[i].draw();
-      }
+        mechanism.draw();      
     }
   };
 
@@ -382,8 +380,8 @@ var editor = (function() {
      */
     var Element = function(options) {
       Shape.apply(this, arguments);
-      this.body = options.body || null;
-      this.selected = options.selected || false;      
+      this.body = options.body || null;    
+      elements.push(this);
     }
     
     Element.prototype = Object.create(Shape.prototype);
@@ -393,7 +391,7 @@ var editor = (function() {
         selectedElements.push(this);
         if (selectedElements.length == 2 && selectedElements[0] instanceof Point
             && selectedElements[1] instanceof Point) {
-          mechanism.createEdge(selectedElements[0], selectedElements[1]);
+          createEdge(selectedElements[0], selectedElements[1]);
           selectedElements = [];
         }
       }
@@ -410,8 +408,7 @@ var editor = (function() {
     //  this.y = options.y;
       this.type = options.type || pointTypes.joint;
       this.radius = options.radius || 1;
-      this.edges = [];
-      elements.push(this);
+      this.edges = [];      
     };
     Point.prototype = Object.create(Element.prototype);
     Point.prototype.radius = 1;
@@ -422,8 +419,8 @@ var editor = (function() {
     };    
     Point.prototype.refreshPosition = function() {
       var pos = this.body.GetPosition();
-      point.x = pos.x;
-      point.y = pos.y;
+      this.x = pos.x;
+      this.y = pos.y;
     };
     Point.prototype.destroy = function() {
       world.DestroyBody(this.body);
@@ -433,6 +430,21 @@ var editor = (function() {
       for ( var i in edgesCopy) {
         edgesCopy[i].destroy();
       }
+    };
+    Point.prototype.draw = function() {
+      ctx.save();
+      ctx.translate(this.x * SCALE, this.y * SCALE);
+      ctx.rotate(this.angle);
+      ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
+      
+      ctx.fillStyle = '#555';
+      if (selectedElements.indexOf(this) > -1)
+        ctx.fillStyle = '#BBB';
+      ctx.beginPath();
+      ctx.arc(this.x * SCALE, this.y * SCALE, this.radius * SCALE, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     };
 
     /**
@@ -457,7 +469,23 @@ var editor = (function() {
       elements.splice(index, 1);
       this.removeFromPoints;
     };
-
+    Edge.prototype.draw = function() {
+      ctx.save();
+      ctx.translate(this.x * SCALE, this.y * SCALE);
+      ctx.rotate(this.angle);
+      ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
+      
+      ctx.fillStyle = '#555';
+      if (selectedElements.indexOf(this) > -1) {
+        ctx.fillStyle = '#BBB';
+        }
+      ctx.beginPath();
+      ctx.arc(this.x * SCALE, this.y * SCALE, this.radius * SCALE, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    };
+    
     var createPoint = function(options) {
       options.radius = 1;
       var point = new Point(options);
@@ -538,12 +566,15 @@ var editor = (function() {
         }
       },
       draw: function() {
-        for(var i in elements){
+        for(var i in elements){          
           elements[i].draw();
         }
       },
       point: Point,
-      edge: Edge
+      edge: Edge,
+      shapeAt: function(id) {
+        return elements[id];
+      }
 
     };
   })();
