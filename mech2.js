@@ -628,19 +628,22 @@ var editor = (function() {
           for (var i in selectedElements) {
             selectedElements[i].destroy();
           }
-          //getElementOfBody(selectedBody).destroy();
           selectedElements = [];
         }
       },
       draw: function() {
-        for(var i in elements){          
+        for(var i in elements) {
           elements[i].draw();
         }
       },
       point: Point,
       edge: Edge,
       shapeAt: function(id) {
-        return elements[id];
+        for(var i in elements) {
+          if (elements[i].id == id) {
+            return elements[i];
+          }
+        }
       },
       start: function() {
         frozen = false;
