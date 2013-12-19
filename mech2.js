@@ -136,7 +136,7 @@ var editor = (function() {
     addToWorld: function(shape) {
       var bodyDef = this.create.bodyDef(shape);
       
-      if (shape instanceof Circle || shape instanceof mechanism.point) {
+      if (shape instanceof Circle || shape instanceof mechanism.Point) {
         fixDef.shape = new b2CircleShape(shape.radius);
       } else if (shape instanceof Box) {
         fixDef.shape = new b2PolygonShape;
@@ -144,7 +144,7 @@ var editor = (function() {
       } else if (shape instanceof Edge) {
         fixDef.shape = new b2PolygonShape;
         fixDef.shape.SetAsEdge(new b2Vec2(0, 0), new b2Vec2(shape.long, 0));
-      } else if (shape instanceof mechanism.edge) {
+      } else if (shape instanceof mechanism.Edge) {
         fixDef.shape = new b2PolygonShape;
         var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2, (shape.p1.y + shape.p2.y) / 2);
         var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y - shape.p2.y).normalize(shape.width);
@@ -479,14 +479,16 @@ var editor = (function() {
       Element.apply(this, arguments);
       this.type = options.type || pointTypes.joint;
       this.radius = options.radius || 1;
-      this.edges = [];      
+      this.edges = [];
+      // точка перемещается, потеряв все связи с другими точками
+      this.isFlying = false;
     };
     Point.prototype = Object.create(Element.prototype);
     Point.prototype.radius = 1;
     Point.prototype.setPosition = function(x, y) {
       this.x = x;
       this.y = y;
-      this.body.SetPosition(new b2Vec2(x, y));
+      this.body.SetPosition(new b2Vec2(x, y));      
     };
     Point.prototype.setType = function(type) {
       if (type != this.type) {
@@ -495,11 +497,33 @@ var editor = (function() {
         box2d.refresh.bodyType(this);
       }
     };  
-    Point.prototype.refreshPosition = function() {
-      var pos = this.body.GetPosition();
-      this.x = pos.x;
-      this.y = pos.y;
+
+    var connectedPoints = [];
+    
+    Point.prototype.beginFlying = function() {
+      this.isFlying = true;
+      connectedPoints = [];
+      // удаляем все рёбра
+      var edgesCopy = this.edges.slice();
+      for (var i in edgesCopy)
+      {
+        if (edgesCopy[i].p1 == this) {
+          connectedPoints.push(edgesCopy[i].p2);
+        } else {
+          connectedPoints.push(edgesCopy[i].p1);
+        }
+        edgesCopy[i].destroy();
+      }
+      this.edges = [];
     };
+    Point.prototype.endFlying = function() {
+      this.isFlying = false;
+      // снова создаём рёбра
+      for (var i in connectedPoints)
+      {
+        createEdge(this, connectedPoints[i]);
+      }
+    }
     Point.prototype.destroy = function() {
       world.DestroyBody(this.body);
       var index = elements.indexOf(this);
@@ -508,7 +532,7 @@ var editor = (function() {
       for ( var i in edgesCopy) {
         edgesCopy[i].destroy();
       }
-    };
+    };    
     Point.prototype.draw = function() {
       ctx.save();
       ctx.translate(this.x * SCALE, this.y * SCALE);
@@ -554,7 +578,7 @@ var editor = (function() {
       this.p2.edges.push(this);
     };
     Edge.prototype = Object.create(Element.prototype);
-    Edge.prototype.width = 0.5;
+    Edge.prototype.width = 0.2;
     Edge.prototype.removeFromPoints = function() {
       var index = this.p1.edges.indexOf(this);
       this.p1.edges.splice(index, 1);
@@ -565,7 +589,7 @@ var editor = (function() {
       world.DestroyBody(this.body);
       var index = elements.indexOf(this);
       elements.splice(index, 1);
-      this.removeFromPoints;
+      this.removeFromPoints();
     };
     Edge.prototype.draw = function() {
       ctx.save();
@@ -595,9 +619,6 @@ var editor = (function() {
     var createEdge = function(p1, p2) {
       if (getEdgeBetweenPoints(p1, p2))
         return;
-
-      p1.refreshPosition();
-      p2.refreshPosition();
 
       var edge = new Edge({
         p1: p1,
@@ -641,7 +662,7 @@ var editor = (function() {
       dashboard.elementId.value = element.id;
     }
     
-    var currentBody;
+    var currentBody;    
     return {
       onDown: function() {
         currentBody = box2d.get.bodyAtMouse();
@@ -677,6 +698,10 @@ var editor = (function() {
                 element.unselect();
               }
               element.isActive = false;
+              if (element.isFlying) {
+                // восстанавливаем ребра
+                element.endFlying();
+              }
             }
           }
         }
@@ -692,11 +717,16 @@ var editor = (function() {
         }
       },
       onMove: function() {
-        if (frozen && mouse.isDown) {         
+        if (frozen && mouse.isDown) {          
           if (currentBody) {
             var element = getElementOfBody(currentBody);
             if (element) {
               if (element instanceof Point) {
+                if (mouse.isCtrl && !element.isFlying) {
+                  // убираем рёбра
+                  element.beginFlying();
+                }
+                
                 // двигаем точку
                 element.setPosition(
                   mouse.x,
@@ -742,8 +772,8 @@ var editor = (function() {
           elements[i].draw();
         }
       },
-      point: Point,
-      edge: Edge,
+      Point: Point,
+      Edge: Edge,
       shapeAt: function(id) {
         for(var i in elements) {
           if (elements[i].id == id) {
