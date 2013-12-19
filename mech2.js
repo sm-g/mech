@@ -19,6 +19,11 @@ var editor = (function() {
     pointX: 0,
     pointY: 0,
   }
+  
+  var colors = {
+    active: 'BBB',
+    defaults: '555'
+  }
 
   var debug = true;
 
@@ -177,7 +182,7 @@ var editor = (function() {
       },
       bodyDef: function(shape) {
         var bodyDef = new b2BodyDef;
-        if (shape.isStatic == true) {
+        if (shape.isStatic) {
           bodyDef.type = b2Body.b2_staticBody;
         } else {
           bodyDef.type = b2Body.b2_dynamicBody;
@@ -226,6 +231,17 @@ var editor = (function() {
         return selectedBody;
       }
 
+    },
+    refresh: {
+      bodyType: function(element) {
+        var body = element.body;
+        if (element.isStatic)
+        {
+          body.SetType(b2Body.b2_staticBody)
+        } else {
+          body.SetType(b2Body.b2_dynamicBody);
+        }
+      }
     },
     isValid: {
       x: function(val) {
@@ -338,6 +354,7 @@ var editor = (function() {
       this.x = options.x;
       this.y = options.y;
     };
+
   };
   /**
    * @memberOf editor
@@ -462,7 +479,14 @@ var editor = (function() {
       this.x = x;
       this.y = y;
       this.body.SetPosition(new b2Vec2(x, y));
-    };    
+    };
+    Point.prototype.setType = function(type) {
+      if (type != this.type) {
+        this.type = type;
+        this.isStatic = (type == pointTypes.fixed || type == pointTypes.clockwiseFixed);
+        box2d.refresh.bodyType(this);
+      }
+    };  
     Point.prototype.refreshPosition = function() {
       var pos = this.body.GetPosition();
       this.x = pos.x;
@@ -481,16 +505,33 @@ var editor = (function() {
       ctx.save();
       ctx.translate(this.x * SCALE, this.y * SCALE);
       ctx.rotate(this.angle);
-      ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
+      ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);      
       
-      ctx.fillStyle = '#555';
       if (this.isSelected()) {
-        ctx.fillStyle = '#BBB';
+        ctx.fillStyle = colors.active;
+      } else {
+        ctx.fillStyle = colors.defaults;
       }
+      
+      
       ctx.beginPath();
       ctx.arc(this.x * SCALE, this.y * SCALE, this.radius * SCALE, 0, Math.PI * 2, true);
       ctx.closePath();
       ctx.fill();
+      
+      // опорная точка - рисуем треугольник
+      if (this.type == pointTypes.fixed || this.type == pointTypes.clockwiseFixed) {
+        ctx.strokeStyle = this.color;        
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(this.x * SCALE, this.y * SCALE);
+        ctx.lineTo((this.x + this.radius) * SCALE, (this.y + this.radius)* SCALE);
+        ctx.lineTo((this.x - this.radius) * SCALE, (this.y + this.radius)* SCALE);
+        ctx.closePath();
+        ctx.stroke();
+        
+      }      
+      
       ctx.restore();
     };
 
@@ -522,10 +563,12 @@ var editor = (function() {
       ctx.rotate(this.angle);
       ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
       
-      ctx.fillStyle = '#555';
       if (this.isSelected()) {
-        ctx.fillStyle = '#BBB';
+        ctx.fillStyle = colors.active;
+      } else {
+        ctx.fillStyle = colors.defaults;
       }
+      
       ctx.beginPath();
       ctx.arc(this.x * SCALE, this.y * SCALE, this.radius * SCALE, 0, Math.PI * 2, true);
       ctx.closePath();
@@ -571,13 +614,13 @@ var editor = (function() {
         return element;
       }
     };
-    getEdgeBetweenPoints = function(p1, p2) {
+    var getEdgeBetweenPoints = function(p1, p2) {
       for ( var i in p1.edges) {
         if (elements[i].point1 == p2 || elements[i].point2 == p2)
           return elements[i];
       }
     };
-    join = function(point, edge) {
+    var join = function(point, edge) {
       var joint = new b2RevoluteJointDef();
       joint.Initialize(point.body, edge.body, point.body.GetWorldCenter());
       world.CreateJoint(joint);
@@ -671,7 +714,7 @@ var editor = (function() {
         if (element) {
           if (element instanceof Point) {
             if (what == 'type') {
-              element.type = value;
+              element.setType(value);
             } else {
               var newX = element.x, 
                   newY = element.y;
