@@ -399,6 +399,7 @@ var editor = (function() {
     var Element = function(options) {
       Shape.apply(this, arguments);
       this.body = options.body || null;    
+      this.isActive = options.isActive || false;
       elements.push(this);
     }
     
@@ -409,8 +410,13 @@ var editor = (function() {
         selectedElements.push(this);        
       }
     };
-    
-    
+    Element.prototype.unselect = function() {
+      var index = selectedElements.indexOf(this);
+      selectedElements.splice(index, 1);
+    };
+    Element.prototype.isSelected = function() {
+      return selectedElements.indexOf(this) != -1;
+    };
 
     /**
      * @memberOf mechanism
@@ -451,8 +457,9 @@ var editor = (function() {
       ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
       
       ctx.fillStyle = '#555';
-      if (selectedElements.indexOf(this) > -1)
+      if (this.isSelected()) {
         ctx.fillStyle = '#BBB';
+      }
       ctx.beginPath();
       ctx.arc(this.x * SCALE, this.y * SCALE, this.radius * SCALE, 0, Math.PI * 2, true);
       ctx.closePath();
@@ -489,9 +496,9 @@ var editor = (function() {
       ctx.translate(-(this.x) * SCALE, -(this.y) * SCALE);
       
       ctx.fillStyle = '#555';
-      if (selectedElements.indexOf(this) > -1) {
+      if (this.isSelected()) {
         ctx.fillStyle = '#BBB';
-        }
+      }
       ctx.beginPath();
       ctx.arc(this.x * SCALE, this.y * SCALE, this.radius * SCALE, 0, Math.PI * 2, true);
       ctx.closePath();
@@ -549,10 +556,47 @@ var editor = (function() {
       world.CreateJoint(joint);
     };
 
+    
+    var currentBody;
     return {
+      onDown: function() {
+        currentBody = box2d.get.bodyAtMouse();
+        if (frozen && currentBody) {
+          var element = getElementOfBody(currentBody);
+          if (element) {
+            if (element instanceof Point) {
+              if (!element.isSelected()) {
+                // выделяем точку               
+                element.select();
+                // if (selectedElements.length == 2 && selectedElements[0] instanceof Point
+                // && selectedElements[1] instanceof Point) {
+                  // два точки выделены - добавляем между ними ребро
+                  // createEdge(selectedElements[0], selectedElements[1]);
+                  // selectedElements = [];
+                // }
+                element.isActive = true;
+              }         
+              
+            }
+          }
+        }
+      },      
+      onUp: function() {
+        if (frozen && currentBody) {
+          var element = getElementOfBody(currentBody);
+          if (element) {
+            if (element instanceof Point) {
+              if (element.isSelected() && !element.isActive) {
+                // снимаем выделение
+                element.unselect();
+              }
+              element.isActive = false;
+            }
+          }
+        }
+      },
       onClick: function() {
-        var body = box2d.get.bodyAtMouse();
-        if (frozen && !body) {
+        if (frozen && !currentBody) {
           // клик по пустому месту - добавляем точку
           createPoint({
             x: mouse.x,
@@ -561,52 +605,30 @@ var editor = (function() {
           selectedElements = [];
         }
       },
-      onDown: function() {
-        var body = box2d.get.bodyAtMouse();
-        if (frozen && body) {
-          var element = getElementOfBody(body);
-          if (element) {
-            if (element instanceof Point) {
-              // выделяем точку
-              element.setPosition(
-              mouse.x,
-              mouse.y
-              );
-              
-              element.select();
-              
-              if (selectedElements.length == 2 && selectedElements[0] instanceof Point
-              && selectedElements[1] instanceof Point) {
-                // два точки выделены - добавляем между ними ребро
-                createEdge(selectedElements[0], selectedElements[1]);
-                selectedElements = [];
-              }
-            }
-          }
-        }
-      },
-      onUp: function() {
-       // selectedElements
-      },
       onMove: function() {
-        if (frozen && mouse.isDown) {
-          var body = box2d.get.bodyAtMouse();
-          if (body) {
-            var element = getElementOfBody(body);
+        if (frozen && mouse.isDown) {         
+          if (currentBody) {
+            var element = getElementOfBody(currentBody);
             if (element) {
               if (element instanceof Point) {
+                // двигаем точку
                 element.setPosition(
-                mouse.x,
-                mouse.y
+                  mouse.x,
+                  mouse.y
                 );
               }
+              element.isActive = true;
             }
           }
         }
       },
       onDelete: function() {
         if (frozen && selectedElements[0]) {
-          getElementOfBody(selectedBody).destroy();
+          // удаляем все выбранные элементы
+          for (var i in selectedElements) {
+            selectedElements[i].destroy();
+          }
+          //getElementOfBody(selectedBody).destroy();
           selectedElements = [];
         }
       },
