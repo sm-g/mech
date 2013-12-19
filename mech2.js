@@ -14,6 +14,11 @@ var editor = (function() {
 
   var SCALE, canvas, ctx, world, fixDef, selectedBody;
   var buttons = {};
+  var dashboard = {
+    pointType: 0,
+    pointX: 0,
+    pointY: 0,
+  }
 
   var debug = true;
 
@@ -41,6 +46,10 @@ var editor = (function() {
       buttons.play = document.getElementById("play");
       buttons.pause = document.getElementById("pause");
       buttons.stop = document.getElementById("stop");
+      dashboard.pointType = document.getElementById("point-type");
+      dashboard.pointX = document.getElementById("point-x");
+      dashboard.pointY = document.getElementById("point-y");
+      dashboard.elementId = document.getElementById("element-id");
       
       ctx = canvas.getContext("2d");
       SCALE = scale || 20;
@@ -556,6 +565,13 @@ var editor = (function() {
       world.CreateJoint(joint);
     };
 
+    var showInfo = function(element) {
+      // показываем инфо на панели
+      dashboard.pointX.value = element.x;
+      dashboard.pointY.value = element.y;
+      dashboard.pointType.selectedIndex = element.type;
+      dashboard.elementId.value = element.id;
+    }
     
     var currentBody;
     return {
@@ -576,7 +592,7 @@ var editor = (function() {
                 // }
                 element.isActive = true;
               }         
-              
+             showInfo(element);
             }
           }
         }
@@ -618,6 +634,7 @@ var editor = (function() {
                 );
               }
               element.isActive = true;
+              showInfo(element);
             }
           }
         }

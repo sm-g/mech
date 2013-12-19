@@ -16,11 +16,13 @@
       <button id="pause" type="button">Пауза</button>
       <button id="stop" type="button">Стоп</button>
       <div>
+        <label for="element-id">Точка №</label>
+        <input id="element-id"></input>
         <label for="point-type">Тип</label>
-        <select name="point-type">
-          <option value="joint">Свободная</option>
+        <select id="point-type">
           <option value="fixed">Опора</option>
           <option value="clockwiseFixed">Вращается</option>
+          <option value="joint">Свободная</option>
         </select>
         <label for="point-x">X</label>
         <input id="point-x"></input>
