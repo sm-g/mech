@@ -135,7 +135,7 @@ var editor = (function() {
      */
     addToWorld: function(shape) {
       var bodyDef = this.create.bodyDef(shape);
-      var body = world.CreateBody(bodyDef);
+      
       if (shape instanceof Circle || shape instanceof mechanism.point) {
         fixDef.shape = new b2CircleShape(shape.radius);
       } else if (shape instanceof Box) {
@@ -150,10 +150,18 @@ var editor = (function() {
         var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y - shape.p2.y).normalize(shape.width);
         var pp1 = paperPoint.rotate(90);
         var pp2 = paperPoint.rotate(-90);
-        fixDef.shape.SetAsArray([new b2Vec2(shape.p1.x - middleP.x, shape.p1.y - middleP.y), new b2Vec2(pp1.x, pp1.y),
-            new b2Vec2(shape.p2.x - middleP.x, shape.p2.y - middleP.y), new b2Vec2(pp2.x, pp2.y)]);
+        fixDef.shape.SetAsArray([
+          new b2Vec2(shape.p1.x - middleP.x, shape.p1.y - middleP.y), 
+          new b2Vec2(pp1.x, pp1.y),
+          new b2Vec2(shape.p2.x - middleP.x, shape.p2.y - middleP.y),
+          new b2Vec2(pp2.x, pp2.y)]);
+        
+        bodyDef.position.x = middleP.x;
+        bodyDef.position.y = middleP.y;
       }
-
+      
+      
+      var body = world.CreateBody(bodyDef);
       body.CreateFixture(fixDef);
       return body;
     },
@@ -542,6 +550,8 @@ var editor = (function() {
       Element.apply(this, arguments);
       this.p1 = options.p1;
       this.p2 = options.p2;
+      this.p1.edges.push(this);
+      this.p2.edges.push(this);
     };
     Edge.prototype = Object.create(Element.prototype);
     Edge.prototype.width = 0.5;
@@ -595,12 +605,9 @@ var editor = (function() {
       });
       var body = box2d.addToWorld(edge);
       edge.body = body;
-    };
-    var getEdgeBetweenPoints = function(p1, p2) {
-      for ( var i in p1.edges) {
-        if (edges[i].point1 == p2 || edges[i].point2 == p2)
-          return edges[i];
-      }
+      
+      join(p1, edge);
+      join(p2, edge);
     };
     var getElementOfBody = function(body) {
       if (body) {
@@ -616,8 +623,8 @@ var editor = (function() {
     };
     var getEdgeBetweenPoints = function(p1, p2) {
       for ( var i in p1.edges) {
-        if (elements[i].point1 == p2 || elements[i].point2 == p2)
-          return elements[i];
+        if (p1.edges[i].p1 == p2 || p1.edges[i].p2 == p2)
+          return p1.edges[i];
       }
     };
     var join = function(point, edge) {
@@ -645,12 +652,14 @@ var editor = (function() {
               if (!element.isSelected()) {
                 // выделяем точку               
                 element.select();
-                // if (selectedElements.length == 2 && selectedElements[0] instanceof Point
-                // && selectedElements[1] instanceof Point) {
+                
+                if (selectedElements.length == 2 && selectedElements[0] instanceof Point
+                && selectedElements[1] instanceof Point) {
                   // два точки выделены - добавляем между ними ребро
-                  // createEdge(selectedElements[0], selectedElements[1]);
-                  // selectedElements = [];
-                // }
+                  createEdge(selectedElements[0], selectedElements[1]);
+                  selectedElements = [];
+                }
+                
                 element.isActive = true;
               }         
              showInfo(element);
