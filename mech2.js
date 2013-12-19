@@ -72,6 +72,18 @@ var editor = (function() {
         mechanism.pause();
       }, false);
       
+      dashboard.pointX.addEventListener('input', function(e) {
+        mechanism.setPoint('x', +e.target.value);
+      }, false);
+      
+      dashboard.pointY.addEventListener('input', function(e) {
+        mechanism.setPoint('y', +e.target.value);
+      }, false);
+      
+      dashboard.pointType.addEventListener('change', function(e) {
+        mechanism.setPoint('type', e.target.selectedIndex);
+      }, false);
+      
       canvas.addEventListener('click', function(e) {
         mechanism.onClick();
       }, false);
@@ -214,6 +226,14 @@ var editor = (function() {
         return selectedBody;
       }
 
+    },
+    isValid: {
+      x: function(val) {
+        return val >= 0 && val <= canvas.width / SCALE;
+      },
+      y: function(val) {
+        return val >= 0 && val <= canvas.height / SCALE;
+      }
     }
   };
 
@@ -432,8 +452,6 @@ var editor = (function() {
      */
     var Point = function(options) {
       Element.apply(this, arguments);
-    //  this.x = options.x;
-    //  this.y = options.y;
       this.type = options.type || pointTypes.joint;
       this.radius = options.radius || 1;
       this.edges = [];      
@@ -647,6 +665,25 @@ var editor = (function() {
           }
           selectedElements = [];
         }
+      },
+      setPoint: function(what, value) {
+          var element = getElementOfBody(currentBody);
+        if (element) {
+          if (element instanceof Point) {
+            if (what == 'type') {
+              element.type = value;
+            } else {
+              var newX = element.x, 
+                  newY = element.y;
+              if (what == 'x' && box2d.isValid.x(value)) {
+                newX = value
+              } else if (what == 'y' && box2d.isValid.y(value)) {
+                newY = value;
+              }
+              element.setPosition(newX, newY);
+            }
+          }
+        }        
       },
       draw: function() {
         for(var i in elements) {
