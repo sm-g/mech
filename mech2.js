@@ -238,6 +238,7 @@ var editor = (function() {
         fixDef.density = 10.0; // плотность
         fixDef.friction = 1; // трение
         fixDef.restitution = 0.0; // упругость
+        fixDef.filter.groupIndex = -1; // не сталкиваться
       },
       /**
        * Создает body definition для фигуры.
