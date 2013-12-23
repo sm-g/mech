@@ -219,6 +219,7 @@ var editor = (function() {
        */
       world: function() {
         world = new b2World(new b2Vec2(0, 0), false);
+        world.paused = true;
 
         if (debug) {
           var debugDraw = new b2DebugDraw();
@@ -545,7 +546,7 @@ var editor = (function() {
     };
     var edgeWidth = 0.5;
     var elements = [], selectedElements = [];
-    var frozen = true;
+
     /**
      * Создаёт новый Element.
      * @memberOf mechanism
@@ -856,7 +857,7 @@ var editor = (function() {
        */
       onDown: function() {
         currentBody = box2d.get.bodyAtMouse();
-        if (frozen && currentBody) {
+        if (world.paused && currentBody) {
           var element = getElementOfBody(currentBody);
           if (element) {
             if (element instanceof Point || element instanceof Edge) {
@@ -884,7 +885,7 @@ var editor = (function() {
        * Обрабатывает событие mouseup.
        */
       onUp: function() {
-        if (frozen && currentBody) {
+        if (world.paused && currentBody) {
           var element = getElementOfBody(currentBody);
           if (element) {
             if (element instanceof Point) {
@@ -905,7 +906,7 @@ var editor = (function() {
        * Обрабатывает событие click.
        */
       onClick: function() {
-        if (frozen && !currentBody) {
+        if (world.paused && !currentBody) {
           // клик по пустому месту - добавляем точку
           createPoint({
             x: mouse.x,
@@ -918,7 +919,7 @@ var editor = (function() {
        * Обрабатывает событие mousemove.
        */
       onMove: function() {
-        if (frozen && mouse.isDown) {
+        if (world.paused && mouse.isDown) {
           if (currentBody) {
             var element = getElementOfBody(currentBody);
             if (element) {
@@ -941,7 +942,7 @@ var editor = (function() {
        * Обрабатывает нажатие delete.
        */
       onDelete: function() {
-        if (frozen && selectedElements[0]) {
+        if (world.paused && selectedElements[0]) {
           // удаляем все выбранные элементы
           for ( var i in selectedElements) {
             selectedElements[i].destroy();
@@ -998,14 +999,14 @@ var editor = (function() {
        * Запускает симуляцию.
        */
       start: function() {
-        frozen = false;
+        world.paused = false;
         world.SetGravity(new b2Vec2(0, 2));
       },
       /**
        * Останавливает симуляцию.
        */
       pause: function() {
-        frozen = true;
+        world.paused = true;
         world.SetGravity(new b2Vec2(0, 0));
         for ( var i in elements) {
           elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
