@@ -364,8 +364,9 @@ var editor = (function() {
      */
     update: function() {
       for ( var b = world.GetBodyList(); b; b = b.m_next) {
-        if (b.IsActive() && typeof b.GetUserData() !== 'undefined' && b.GetUserData() != null) {
-          mechanism.shapeAt(b.GetUserData()).update(box2d.get.bodySpec(b));
+        var id = b.GetUserData();
+        if (b.IsActive() && typeof id !== 'undefined' && id != null && id > -1) {
+          mechanism.getElement(id).update(box2d.get.bodySpec(b));
         }
       }
       dashboard.currentState.value = mechanism.save();
@@ -436,7 +437,7 @@ var editor = (function() {
    */
   var Shape = function(options) {
     // автоинкремент
-    this.id = helpers.counter();
+    this.id = options.id || helpers.counter();
     this.x = options.x || 0;
     this.y = options.y || 0;
     this.angle = options.angle || 0;
@@ -585,6 +586,7 @@ var editor = (function() {
       // точка перемещается, потеряв все связи
       // с другими точками
       this.isFlying = false;
+      this.motor = null;
     };
     Point.prototype = Object.create(Element.prototype);
     Point.prototype.radius = 1;
@@ -600,9 +602,15 @@ var editor = (function() {
       if (type != this.type) {
         if (type == pointTypes.clockwiseFixed) {
           // добавляем вращение
-         // var joint = new b2RevoluteJointDef();
-         // joint.Initialize(this.body, this.body.GetWorldCenter());
-         // world.CreateJoint(joint);
+          this.motor = new Circle({id: -1, x: this.x, y: this.y});
+          var body = box2d.addToWorld(this.motor);
+          this.motor.body = body;
+          var joint = new b2RevoluteJointDef();
+          joint.enableMotor = true;
+          joint.maxMotorTorque = 10;
+          joint.motorSpeed = 5;
+          joint.Initialize(this.body, this.motor.body, this.body.GetWorldCenter());
+          world.CreateJoint(joint);
         } else if (this.type == pointTypes.clockwiseFixed) {
           // убираем вращение
           
@@ -988,7 +996,7 @@ var editor = (function() {
        * @param id
        * @returns элемент с указанным id.
        */
-      shapeAt: function(id) {
+      getElement: function(id) {
         for ( var i in elements) {
           if (elements[i].id == id) {
             return elements[i];
