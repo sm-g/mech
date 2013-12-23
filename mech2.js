@@ -679,7 +679,7 @@ var editor = (function() {
         ctx.stroke();
       }      
       
-      // точка вращается - рисуем стрелку
+      // точка вращается - рисуем дугу
       if (this.type == pointTypes.clockwiseFixed) {
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 1;
@@ -732,19 +732,20 @@ var editor = (function() {
     Edge.prototype.draw = function() {
       ctx.save();
       ctx.translate(this.x * scale, this.y * scale);
-      ctx.rotate(this.angle);
+      //ctx.rotate(this.angle);
       ctx.translate(-(this.x) * scale, -(this.y) * scale);
 
       if (this.isSelected()) {
-        ctx.fillStyle = colors.active;
+        ctx.strokeStyle = colors.active;
       } else {
-        ctx.fillStyle = colors.defaults;
+        ctx.strokeStyle = colors.defaults;
       }
 
+      ctx.lineWidth = scale / 10 | 0; // целая часть
       ctx.beginPath();
-      ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(this.p1.x * scale, this.p1.y * scale);
+      ctx.lineTo(this.p2.x * scale, this.p2.y * scale);
+      ctx.stroke();
       ctx.restore();
     };
 
