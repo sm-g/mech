@@ -677,8 +677,7 @@ var editor = (function() {
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(this.x * scale - 3, this.y * scale - 3, this.radius * scale + 12, 0, Math.PI * 1.5, false);
-        ctx.closePath();
+        ctx.arc(this.x * scale, this.y * scale, this.radius * scale + 3, 0, Math.PI * 1.5, false);
         ctx.stroke();
       }     
       ctx.restore();
