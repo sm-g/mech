@@ -20,7 +20,7 @@ var editor = (function() {
    * Кнопки управления симуляцией.
    * @memberOf editor
    */  
-  var buttons = {
+  var controls = {
     play: 0,
     pause: 0,
     stop: 0,
@@ -35,9 +35,13 @@ var editor = (function() {
     /**
      * @memberOf dashboard
      */
+    elementId: 0,
+    elementName: 0,
     pointType: 0,
     pointX: 0,
     pointY: 0,
+    edgePoints: 0,
+    edgeLength: 0,
     currentState: 0
   }
   /**
@@ -75,15 +79,18 @@ var editor = (function() {
      */
     start: function(id, _scale) {
       canvas = document.getElementById(id);
-      buttons.play = document.getElementById("play");
-      buttons.pause = document.getElementById("pause");
-      buttons.stop = document.getElementById("stop");
-      buttons.load = document.getElementById("load");
-      buttons.scale = document.getElementById("scale");
+      controls.play = document.getElementById("play");
+      controls.pause = document.getElementById("pause");
+      controls.stop = document.getElementById("stop");
+      controls.load = document.getElementById("load");
+      controls.scale = document.getElementById("scale");
       dashboard.pointType = document.getElementById("point-type");
       dashboard.pointX = document.getElementById("point-x");
       dashboard.pointY = document.getElementById("point-y");
+      dashboard.edgePoints = document.getElementById("edge-points");
+      dashboard.edgeLength = document.getElementById("edge-length");
       dashboard.elementId = document.getElementById("element-id");
+      dashboard.elementName = document.getElementById("element-name");
       dashboard.currentState = document.getElementById("current-state");      
 
       ctx = canvas.getContext("2d");
@@ -99,15 +106,15 @@ var editor = (function() {
     callbacks: function() {
       var canvasPosition = helpers.getElementPosition(canvas);
 
-      buttons.play.addEventListener('click', function(e) {
+      controls.play.addEventListener('click', function(e) {
         mechanism.start();
       }, false);
 
-      buttons.pause.addEventListener('click', function(e) {
+      controls.pause.addEventListener('click', function(e) {
         mechanism.pause();
       }, false);
       
-      buttons.load.addEventListener('click', function(e) {
+      controls.load.addEventListener('click', function(e) {
         mechanism.load(dashboard.currentState.value);
       }, false);
 
@@ -123,7 +130,7 @@ var editor = (function() {
         mechanism.setPoint('type', e.target.selectedIndex);
       }, false);
       
-      buttons.scale.addEventListener('change', function(e) {
+      controls.scale.addEventListener('change', function(e) {
         var val = +e.target.value;
         if (val > 0 && val < 50) {
           scale = val;
@@ -704,6 +711,10 @@ var editor = (function() {
       index = this.p2.edges.indexOf(this);
       this.p2.edges.splice(index, 1);
     };
+    Edge.prototype.getLength = function() {
+      var pp = new paper.Point(this.p1.x + this.p2.x, this.p1.y + this.p2.y);
+      return pp.length;
+    };
     /**
      * Соединяет ребро с точкой.
      */
@@ -809,9 +820,26 @@ var editor = (function() {
      * @memberOf mechanism
      */
     var showInfo = function(element) {
-      dashboard.pointX.value = element.x;
-      dashboard.pointY.value = element.y;
-      dashboard.pointType.selectedIndex = element.type;
+      if (element instanceof Point) {
+        dashboard.elementName.innerHTML = 'Точка';
+        dashboard.edgeLength.style.display = "none";
+        dashboard.edgePoints.style.display = "none";
+        dashboard.pointType.style.display = "block";
+        dashboard.pointX.style.display = "block";
+        dashboard.pointY.style.display = "block";
+        dashboard.pointX.value = element.x;
+        dashboard.pointY.value = element.y;
+        dashboard.pointType.selectedIndex = element.type;
+      } else {
+        dashboard.elementName.innerHTML = 'Ребро';
+        dashboard.edgeLength.style.display = "block";
+        dashboard.edgePoints.style.display = "block";
+        dashboard.pointType.style.display = "none";
+        dashboard.pointX.style.display = "none";
+        dashboard.pointY.style.display = "none";
+        dashboard.edgeLength.value = element.getLength();
+        dashboard.edgePoints.value = element.p1.id + '   ' + element.p2.id;
+      }
       dashboard.elementId.value = element.id;
     }
 
@@ -829,13 +857,13 @@ var editor = (function() {
         if (frozen && currentBody) {
           var element = getElementOfBody(currentBody);
           if (element) {
-            if (element instanceof Point) {
+            if (element instanceof Point || element instanceof Edge) {
               if (!element.isSelected()) {
                 if (!mouse.isCtrl) {
                   // убираем выделение со всех элементовэ
                   selectedElements = [];
                 }
-                // выделяем точку
+                
                 element.select();
 
                 if (selectedElements.length == 2 && selectedElements[0] instanceof Point
