@@ -753,7 +753,7 @@ var editor = (function() {
      * @memberOf mechanism
      */
     var createEdge = function(p1, p2) {
-      if (getEdgeBetweenPoints(p1, p2))
+      if (getEdgeBetweenPoints(p1, p2) || p1 == p2)
         return;
 
       var edge = new Edge({
@@ -766,6 +766,19 @@ var editor = (function() {
       edge.joinToPoint(p1);
       edge.joinToPoint(p2);
     };
+    /**
+     * Соединяет все точки рёбрами.
+     * @memberOf mechanism
+     */
+    var connectPoints = function(points) {
+      for (var i in points) {
+        for (var j in points) {
+          if (j > i) {
+            createEdge(points[i],  points[j]);
+          }
+        }
+      }
+    }
     /**
      * @memberOf mechanism
      * @returns Элемент, связанный с телом.
@@ -820,19 +833,16 @@ var editor = (function() {
             if (element instanceof Point) {
               if (!element.isSelected()) {
                 if (!mouse.isCtrl) {
-                  // e,bhftv dsltktybt cj dct[ 'ktvtynjd'
+                  // убираем выделение со всех элементовэ
                   selectedElements = [];
                 }
                 // выделяем точку
                 element.select();
 
                 if (selectedElements.length == 2 && selectedElements[0] instanceof Point
-                    && selectedElements[1] instanceof Point) {
-                  // два точки выделены - добавляем
-                  // между ними ребро
-                  createEdge(selectedElements[0], selectedElements[1]);
-                  selectedElements = [];
-                }
+                && selectedElements[1] instanceof Point) {
+                  connectPoints(selectedElements);      
+                }                
 
                 element.isActive = true;
               }
