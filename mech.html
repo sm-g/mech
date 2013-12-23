@@ -10,11 +10,13 @@
       <canvas id="canvas" width="800" height="300" style="background-color:#333333;" >Браузер не показывает canvas</canvas>
     </div>
     <form id="dashboard">
+      <label for="current-state">Текущее состояние</label>
       <textarea id="current-state"></textarea>
-      <button onclick="editor.load(current-state)">Загрузить</button>
+      <button id="load" type="button">Загрузить</button>
       <button id="play" type="button">Старт</button>
       <button id="pause" type="button">Пауза</button>
       <button id="stop" type="button">Стоп</button>
+      <input id="scale" type="range" min="1" max="50" step="1" value="20"></input>
       <div>
         <label for="element-id">Точка №</label>
         <input id="element-id" readonly></input>

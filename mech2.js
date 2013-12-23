@@ -23,7 +23,9 @@ var editor = (function() {
   var buttons = {
     play: 0,
     pause: 0,
-    stop: 0
+    stop: 0,
+    load: 0,
+    scale: 0
   };
   /**
    * Панель редактирований параметров элемента.
@@ -36,6 +38,7 @@ var editor = (function() {
     pointType: 0,
     pointX: 0,
     pointY: 0,
+    currentState: 0
   }
   /**
    * Цветовая схема.
@@ -45,8 +48,8 @@ var editor = (function() {
     /**
      * @memberOf colors
      */
-    active: 'BBB',
-    defaults: '555'
+    active: '#BBB',
+    defaults: '#555'
   }
   /**
    * Состояние мыши.
@@ -75,10 +78,13 @@ var editor = (function() {
       buttons.play = document.getElementById("play");
       buttons.pause = document.getElementById("pause");
       buttons.stop = document.getElementById("stop");
+      buttons.load = document.getElementById("load");
+      buttons.scale = document.getElementById("scale");
       dashboard.pointType = document.getElementById("point-type");
       dashboard.pointX = document.getElementById("point-x");
       dashboard.pointY = document.getElementById("point-y");
       dashboard.elementId = document.getElementById("element-id");
+      dashboard.currentState = document.getElementById("current-state");      
 
       ctx = canvas.getContext("2d");
       scale = _scale || 20;
@@ -100,6 +106,10 @@ var editor = (function() {
       buttons.pause.addEventListener('click', function(e) {
         mechanism.pause();
       }, false);
+      
+      buttons.load.addEventListener('click', function(e) {
+        mechanism.load(dashboard.currentState.value);
+      }, false);
 
       dashboard.pointX.addEventListener('input', function(e) {
         mechanism.setPoint('x', +e.target.value);
@@ -112,7 +122,14 @@ var editor = (function() {
       dashboard.pointType.addEventListener('change', function(e) {
         mechanism.setPoint('type', e.target.selectedIndex);
       }, false);
-
+      
+      buttons.scale.addEventListener('change', function(e) {
+        var val = +e.target.value;
+        if (val > 0 && val < 50) {
+          scale = val;
+        }
+      }, false);
+      
       canvas.addEventListener('click', function(e) {
         mechanism.onClick();
       }, false);
@@ -290,7 +307,11 @@ var editor = (function() {
         } else {
           body.SetType(b2Body.b2_dynamicBody);
         }
+      },
+      scale: function(newScale) {
+        
       }
+      
     },
     isValid: {
       /**
@@ -338,7 +359,7 @@ var editor = (function() {
           mechanism.shapeAt(b.GetUserData()).update(box2d.get.bodySpec(b));
         }
       }
-
+      dashboard.currentState.value = mechanism.save();
     },
     draw: function() {
       if (debug) {
@@ -563,8 +584,21 @@ var editor = (function() {
       this.y = y;
       this.body.SetPosition(new b2Vec2(x, y));
     };
+    /**
+     * Меняет тип точки
+     */
     Point.prototype.setType = function(type) {
       if (type != this.type) {
+        if (type == pointTypes.clockwiseFixed) {
+          // добавляем вращение
+         // var joint = new b2RevoluteJointDef();
+         // joint.Initialize(this.body, this.body.GetWorldCenter());
+         // world.CreateJoint(joint);
+        } else if (this.type == pointTypes.clockwiseFixed) {
+          // убираем вращение
+          
+        }
+        
         this.type = type;
         this.isStatic = (type == pointTypes.fixed || type == pointTypes.clockwiseFixed);
         box2d.refresh.bodyType(this);
@@ -636,9 +670,17 @@ var editor = (function() {
         ctx.lineTo((this.x - this.radius) * scale, (this.y + this.radius) * scale);
         ctx.closePath();
         ctx.stroke();
-
-      }
-
+      }      
+      
+      // точка вращается - рисуем стрелку
+      if (this.type == pointTypes.clockwiseFixed) {
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(this.x * scale - 3, this.y * scale - 3, this.radius * scale + 12, 0, Math.PI * 1.5, false);
+        ctx.closePath();
+        ctx.stroke();
+      }     
       ctx.restore();
     };
 
@@ -777,6 +819,10 @@ var editor = (function() {
           if (element) {
             if (element instanceof Point) {
               if (!element.isSelected()) {
+                if (!mouse.isCtrl) {
+                  // e,bhftv dsltktybt cj dct[ 'ktvtynjd'
+                  selectedElements = [];
+                }
                 // выделяем точку
                 element.select();
 
@@ -838,7 +884,7 @@ var editor = (function() {
             var element = getElementOfBody(currentBody);
             if (element) {
               if (element instanceof Point) {
-                if (mouse.isCtrl && !element.isFlying) {
+                if (!mouse.isCtrl && !element.isFlying) {
                   // убираем рёбра
                   element.beginFlying();
                 }
@@ -925,6 +971,16 @@ var editor = (function() {
         for ( var i in elements) {
           elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
         }
+      },
+      /**
+       * Загружает механизм из строки.
+       */ 
+      load: function(newState) {
+        
+      },
+      save: function() {
+        var json = "";
+        return json;
       }
 
     };
