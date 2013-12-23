@@ -77,8 +77,8 @@ var editor = (function() {
     /**
      * @memberOf init
      */
-    start: function(id, _scale) {
-      canvas = document.getElementById(id);
+    start: function() {
+      canvas = document.getElementById("canvas");
       controls.play = document.getElementById("play");
       controls.pause = document.getElementById("pause");
       controls.stop = document.getElementById("stop");
@@ -94,7 +94,7 @@ var editor = (function() {
       dashboard.currentState = document.getElementById("current-state");      
 
       ctx = canvas.getContext("2d");
-      scale = _scale || 20;
+      scale = controls.scale.value || 20;
 
       box2d.create.world();
       box2d.create.defaultFixture();
@@ -1025,5 +1025,5 @@ var editor = (function() {
     };
   })();
 
-  init.start('canvas');
+  init.start();
 })();
