@@ -56,7 +56,8 @@ var editor = (function() {
      * @memberOf colors
      */
     active: '#fc6e06',
-    defaults: '#555'
+    defaults: '#555',
+    back: '#fff'
   }
   /**
    * Состояние мыши.
@@ -230,20 +231,20 @@ var editor = (function() {
           var e1 = mechanism.getElement(fixtureA.GetBody().GetUserData());
           var e2 = mechanism.getElement(fixtureB.GetBody().GetUserData());
 
-           if (e1 instanceof mechanism.Edge) {
-           var edge = e1;
-           if (e2 instanceof mechanism.Point) {
-           var point = e2;
-           }
-           } else if (e2 instanceof mechanism.Edge) {
-           var edge = e2;
-           if (e1 instanceof mechanism.Point) {
-           var point = e1;
-           }
-           }
-           if (point && edge) {
-           return point.edges.indexOf(edge) != -1;
-           }
+          if (e1 instanceof mechanism.Edge) {
+            var edge = e1;
+            if (e2 instanceof mechanism.Point) {
+              var point = e2;
+            }
+          } else if (e2 instanceof mechanism.Edge) {
+            var edge = e2;
+            if (e1 instanceof mechanism.Point) {
+              var point = e1;
+            }
+          }
+          if (point && edge) {
+            return point.edges.indexOf(edge) != -1;
+          }
 
           return false;
         }
@@ -547,6 +548,13 @@ var editor = (function() {
 
     Element.prototype = Object.create(Shape.prototype);
 
+    Element.prototype.getColorBySelection = function() {
+      if (this.isSelected()) {
+        return colors.active;
+      } else {
+        return colors.defaults;
+      }
+    };
     Element.prototype.select = function() {
       if (selectedElements.indexOf(this) == -1) {
         selectedElements.push(this);
@@ -559,6 +567,13 @@ var editor = (function() {
     Element.prototype.isSelected = function() {
       return selectedElements.indexOf(this) != -1;
     };
+    
+    Element.prototype.isPoint = function() {
+      return isPoint(this);
+    }
+    Element.prototype.isEdge = function() {
+      return isEdge(this);
+    }
 
     /**
      * @memberOf mechanism
@@ -586,28 +601,27 @@ var editor = (function() {
     Point.prototype.setType = function(type) {
       if (type != this.type) {
         if (type == pointTypes.clockwiseFixed) {
-          for (var j = this.body.GetJointList(); j; j = j.next) {
-            //j.joint.EnableMotor(true);
+          for ( var j = this.body.GetJointList(); j; j = j.next) {
             var a = j.joint.m_bodyA;
             var b = j.joint.m_bodyB;
             world.DestroyJoint(j.joint);
+
             var joint = new b2RevoluteJointDef();
             joint.maxMotorTorque = 2000;
             joint.motorSpeed = 2000;
             joint.enableMotor = true;
             joint.Initialize(a, b, a.GetWorldCenter());
-           // joint.collideConnected = true;
             world.CreateJoint(joint);
           }
         } else if (this.type == pointTypes.clockwiseFixed) {
           // убираем вращение
-          for (var j = this.body.GetJointList(); j; j = j.next) {
+          for ( var j = this.body.GetJointList(); j; j = j.next) {
             var a = j.joint.m_bodyA;
             var b = j.joint.m_bodyB;
             world.DestroyJoint(j.joint);
-            
+
             this.body.SetAngle(0);
-            
+
             var joint = new b2RevoluteJointDef();
             joint.Initialize(a, b, a.GetWorldCenter());
             world.CreateJoint(joint);
@@ -664,20 +678,9 @@ var editor = (function() {
       ctx.rotate(this.angle);
       ctx.translate(-(this.x) * scale, -(this.y) * scale);
 
-      if (this.isSelected()) {
-        ctx.fillStyle = colors.active;
-      } else {
-        ctx.fillStyle = colors.defaults;
-      }
-
-      ctx.beginPath();
-      ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 1.5, false);
-      ctx.closePath();
-      ctx.fill();
-
       // опорная точка - рисуем треугольник
       if (this.type == pointTypes.fixed || this.type == pointTypes.clockwiseFixed) {
-        ctx.strokeStyle = this.color;
+        ctx.strokeStyle = this.getColorBySelection();
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(this.x * scale, this.y * scale);
@@ -687,9 +690,23 @@ var editor = (function() {
         ctx.stroke();
       }
 
+      // окружность
+      ctx.fillStyle = this.getColorBySelection();
+      ctx.beginPath();
+      ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
+      ctx.closePath();
+      ctx.fill();
+
+      // фон
+      ctx.fillStyle = colors.back;
+      ctx.beginPath();
+      ctx.arc(this.x * scale, this.y * scale, this.radius * scale * 0.5, 0, Math.PI * 2, false);
+      ctx.closePath();
+      ctx.fill();
+
       // точка вращается - рисуем дугу
       if (this.type == pointTypes.clockwiseFixed) {
-        ctx.strokeStyle = this.color;
+        ctx.strokeStyle = this.getColorBySelection();
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(this.x * scale, this.y * scale, this.radius * scale + 3, 0, Math.PI * 1.5, false);
@@ -731,7 +748,7 @@ var editor = (function() {
       joint.Initialize(point.body, this.body, point.body.GetWorldCenter());
       joint.maxMotorTorque = 20;
       joint.motorSpeed = 5;
-     // joint.collideConnected = true;
+      // joint.collideConnected = true;
       world.CreateJoint(joint);
     };
     Edge.prototype.destroy = function() {
@@ -760,6 +777,18 @@ var editor = (function() {
       ctx.restore();
     };
 
+    var isPoint = function(element) {
+      return element instanceof Point;
+    }
+    var isEdge = function(element) {
+      return element instanceof Edge;
+    }
+    var getPoints = function() {
+      return elements.filter(isPoint);
+    }
+    var getEdges = function() {
+      return elements.filter(isEdge);
+    }
     /**
      * Создаёт точку с заданными параметрами.
      * 
@@ -836,7 +865,7 @@ var editor = (function() {
      * @memberOf mechanism
      */
     var showInfo = function(element) {
-      if (element instanceof Point) {
+      if (element.isPoint()) {
         dashboard.elementName.innerHTML = 'Точка';
         dashboard.edgeLength.style.display = "none";
         dashboard.edgePoints.style.display = "none";
@@ -873,24 +902,21 @@ var editor = (function() {
         if (world.paused && currentBody) {
           var element = getElementOfBody(currentBody);
           if (element) {
-            if (element instanceof Point || element instanceof Edge) {
-              if (!element.isSelected()) {
-                if (!mouse.isCtrl) {
-                  // убираем выделение со всех элементов
-                  selectedElements = [];
-                }
-
-                element.select();
-
-                if (selectedElements.length == 2 && selectedElements[0] instanceof Point
-                    && selectedElements[1] instanceof Point) {
-                  connectPoints(selectedElements); 
-                }
-
-                element.isActive = true;
+            if (!element.isSelected()) {
+              if (!mouse.isCtrl) {
+                // убираем выделение со всех элементов
+                selectedElements = [];
               }
-              showInfo(element);
+
+              element.select();
+
+              if (selectedElements.length == 2 && selectedElements[0].isPoint() && selectedElements[1].isPoint()) {
+                connectPoints(selectedElements);
+              }
+
+              element.isActive = true;
             }
+            showInfo(element);
           }
         }
       },
@@ -900,17 +926,15 @@ var editor = (function() {
       onUp: function() {
         if (world.paused && currentBody) {
           var element = getElementOfBody(currentBody);
-          if (element) {
-            if (element instanceof Point) {
-              if (element.isSelected() && !element.isActive) {
-                // снимаем выделение
-                element.unselect();
-              }
-              element.isActive = false;
-              if (element.isFlying) {
-                // восстанавливаем ребра
-                element.endFlying();
-              }
+          if (element.isPoint()) {
+            if (element.isSelected() && !element.isActive) {
+              // снимаем выделение
+              element.unselect();
+            }
+            element.isActive = false;
+            if (element.isFlying) {
+              // восстанавливаем ребра
+              element.endFlying();
             }
           }
         }
@@ -935,19 +959,17 @@ var editor = (function() {
         if (world.paused && mouse.isDown) {
           if (currentBody) {
             var element = getElementOfBody(currentBody);
-            if (element) {
-              if (element instanceof Point) {
-                if (!mouse.isCtrl && !element.isFlying) {
-                  // убираем рёбра
-                  element.beginFlying();
-                }
-
-                // двигаем точку
-                element.setPosition(mouse.x, mouse.y);
+            if (element.isPoint()) {
+              if (!mouse.isCtrl && !element.isFlying) {
+                // убираем рёбра
+                element.beginFlying();
               }
-              element.isActive = true;
-              showInfo(element);
+
+              // двигаем точку
+              element.setPosition(mouse.x, mouse.y);
             }
+            element.isActive = true;
+            showInfo(element);
           }
         }
       },
@@ -975,7 +997,7 @@ var editor = (function() {
         var element = selectedElements.pop();
         if (element) {
           selectedElements.push(element);
-          if (element instanceof Point) {
+          if (element.isPoint()) {
             if (what == 'type') {
               element.setType(value);
             } else {
@@ -995,8 +1017,12 @@ var editor = (function() {
        * Отрисовывает все элементы.
        */
       draw: function() {
-        for ( var i in elements) {
-          elements[i].draw();
+        var edges = getEdges();
+        for ( var i in edges) {
+          edges[i].draw();
+        }
+        for ( var i in getPoints()) {
+          getPoints()[i].draw();
         }
       },
       Point: Point,
