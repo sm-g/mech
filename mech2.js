@@ -3,7 +3,7 @@
  */
 var editor = (function() {
   // box2d aliases
-  var b2Vec2 = Box2D.Common.Math.b2Vec2, b2AABB = Box2D.Collision.b2AABB, b2BodyDef = Box2D.Dynamics.b2BodyDef, b2Body = Box2D.Dynamics.b2Body, b2FixtureDef = Box2D.Dynamics.b2FixtureDef, b2Fixture = Box2D.Dynamics.b2Fixture, b2World = Box2D.Dynamics.b2World, b2MassData = Box2D.Collision.Shapes.b2MassData, b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape, b2CircleShape = Box2D.Collision.Shapes.b2CircleShape, b2DebugDraw = Box2D.Dynamics.b2DebugDraw, b2MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef, b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
+  var b2Vec2 = Box2D.Common.Math.b2Vec2, b2AABB = Box2D.Collision.b2AABB, b2BodyDef = Box2D.Dynamics.b2BodyDef, b2Body = Box2D.Dynamics.b2Body, b2FixtureDef = Box2D.Dynamics.b2FixtureDef, b2Fixture = Box2D.Dynamics.b2Fixture, b2World = Box2D.Dynamics.b2World, b2ContactFilter = Box2D.Dynamics.b2ContactFilter, b2MassData = Box2D.Collision.Shapes.b2MassData, b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape, b2CircleShape = Box2D.Collision.Shapes.b2CircleShape, b2DebugDraw = Box2D.Dynamics.b2DebugDraw, b2MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef, b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
 
   window.requestAnimFrame = (function() {
     return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame
@@ -14,12 +14,13 @@ var editor = (function() {
 
   // режим отладки
   var debug = true;
-  
+
   var scale, canvas, ctx, world, fixDef, selectedBody;
   /**
    * Кнопки управления симуляцией.
+   * 
    * @memberOf editor
-   */  
+   */
   var controls = {
     play: 0,
     pause: 0,
@@ -29,6 +30,7 @@ var editor = (function() {
   };
   /**
    * Панель редактирований параметров элемента.
+   * 
    * @memberOf editor
    */
   var dashboard = {
@@ -46,6 +48,7 @@ var editor = (function() {
   }
   /**
    * Цветовая схема.
+   * 
    * @memberOf editor
    */
   var colors = {
@@ -57,6 +60,7 @@ var editor = (function() {
   }
   /**
    * Состояние мыши.
+   * 
    * @memberOf editor
    */
   var mouse = {
@@ -71,6 +75,7 @@ var editor = (function() {
 
   /**
    * Инициализатор редактора.
+   * 
    * @memberOf editor
    */
   var init = {
@@ -91,7 +96,7 @@ var editor = (function() {
       dashboard.edgeLength = document.getElementById("edge-length");
       dashboard.elementId = document.getElementById("element-id");
       dashboard.elementName = document.getElementById("element-name");
-      dashboard.currentState = document.getElementById("current-state");      
+      dashboard.currentState = document.getElementById("current-state");
 
       ctx = canvas.getContext("2d");
       scale = controls.scale.value || 20;
@@ -113,7 +118,7 @@ var editor = (function() {
       controls.pause.addEventListener('click', function(e) {
         mechanism.pause();
       }, false);
-      
+
       controls.load.addEventListener('click', function(e) {
         mechanism.load(dashboard.currentState.value);
       }, false);
@@ -129,14 +134,14 @@ var editor = (function() {
       dashboard.pointType.addEventListener('change', function(e) {
         mechanism.setPoint('type', e.target.selectedIndex);
       }, false);
-      
+
       controls.scale.addEventListener('change', function(e) {
         var val = +e.target.value;
         if (val > 0 && val < 50) {
           scale = val;
         }
       }, false);
-      
+
       canvas.addEventListener('click', function(e) {
         mechanism.onClick();
       }, false);
@@ -174,14 +179,15 @@ var editor = (function() {
     }
   };
 
-  /** 
+  /**
    * @memberOf editor
    */
   var box2d = {
     /**
      * Добавляет в мир тело для соответствующей фигуры.
+     * 
      * @memberOf box2d
-     * @param shape 
+     * @param shape
      * @returns Созданное тело.
      */
     addToWorld: function(shape) {
@@ -189,12 +195,6 @@ var editor = (function() {
 
       if (shape instanceof Circle || shape instanceof mechanism.Point) {
         fixDef.shape = new b2CircleShape(shape.radius);
-      } else if (shape instanceof Box) {
-        fixDef.shape = new b2PolygonShape;
-        fixDef.shape.SetAsBox(shape.width / 2, shape.height / 2);
-      } else if (shape instanceof Edge) {
-        fixDef.shape = new b2PolygonShape;
-        fixDef.shape.SetAsEdge(new b2Vec2(0, 0), new b2Vec2(shape.long, 0));
       } else if (shape instanceof mechanism.Edge) {
         fixDef.shape = new b2PolygonShape;
         var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2, (shape.p1.y + shape.p2.y) / 2);
@@ -215,11 +215,40 @@ var editor = (function() {
     create: {
       /**
        * Создает мир.
+       * 
        * @memberOf create
        */
       world: function() {
         world = new b2World(new b2Vec2(0, 0), false);
         world.paused = true;
+        var filter = new b2ContactFilter();
+        /**
+         * @returns Должны ли сталкиваться два fixture. Сталкиваются соединённые
+         *          ребро и точка.
+         */
+        filter.ShouldCollide = function(fixtureA, fixtureB) {
+          var e1 = mechanism.getElement(fixtureA.GetBody().GetUserData());
+          var e2 = mechanism.getElement(fixtureB.GetBody().GetUserData());
+
+           if (e1 instanceof mechanism.Edge) {
+           var edge = e1;
+           if (e2 instanceof mechanism.Point) {
+           var point = e2;
+           }
+           } else if (e2 instanceof mechanism.Edge) {
+           var edge = e2;
+           if (e1 instanceof mechanism.Point) {
+           var point = e1;
+           }
+           }
+           if (point && edge) {
+           return point.edges.indexOf(edge) != -1;
+           }
+
+          return false;
+        }
+
+        world.SetContactFilter(filter);
 
         if (debug) {
           var debugDraw = new b2DebugDraw();
@@ -239,10 +268,10 @@ var editor = (function() {
         fixDef.density = 10.0; // плотность
         fixDef.friction = 1; // трение
         fixDef.restitution = 0.0; // упругость
-        fixDef.filter.groupIndex = -1; // не сталкиваться
       },
       /**
        * Создает body definition для фигуры.
+       * 
        * @param shape
        * @returns body definition
        */
@@ -280,7 +309,8 @@ var editor = (function() {
         };
       },
       /**
-       * @param dynamicOnly Флаг поиска только нестатических тел.
+       * @param dynamicOnly
+       *          Флаг поиска только нестатических тел.
        * @returns Тело, на которое указывает мышь.
        */
       bodyAtMouse: function(dynamicOnly) {
@@ -307,6 +337,7 @@ var editor = (function() {
     refresh: {
       /**
        * Обновляет тип тела для элемента.
+       * 
        * @param element
        */
       bodyType: function(element) {
@@ -318,9 +349,9 @@ var editor = (function() {
         }
       },
       scale: function(newScale) {
-        
+
       }
-      
+
     },
     isValid: {
       /**
@@ -346,6 +377,7 @@ var editor = (function() {
   var loop = {
     /**
      * Цикл симуляции.
+     * 
      * @memberOf loop
      */
     process: function() {
@@ -360,7 +392,7 @@ var editor = (function() {
       world.ClearForces();
     },
     /**
-     * Обновляет положения элементов. 
+     * Обновляет положения элементов.
      */
     update: function() {
       for ( var b = world.GetBodyList(); b; b = b.m_next) {
@@ -432,8 +464,9 @@ var editor = (function() {
   };
   /**
    * Создает новый Shape. Основа для всех фигур.
+   * 
    * @memberOf editor
-   * @constructor 
+   * @constructor
    */
   var Shape = function(options) {
     // автоинкремент
@@ -460,34 +493,8 @@ var editor = (function() {
 
   };
   /**
-   * Создаёт новый Edge.
-   * @memberOf editor
-   * @constructor
-   */
-  var Edge = function(options) {
-    Shape.call(this, options);
-
-    this.long = options.long || 1;
-    this.draw = function() {
-      ctx.save();
-      ctx.translate(this.x * scale, this.y * scale);
-      ctx.rotate(this.angle);
-      ctx.translate(-(this.x) * scale, -(this.y) * scale);
-
-      ctx.strokeStyle = this.color;
-
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(this.x * scale, this.y * scale);
-      ctx.lineTo(this.long * scale, this.y * scale);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
-    };
-  };
-  Edge.prototype = Object.create(Shape.prototype);
-  /**
    * Создаёт новый Circle.
+   * 
    * @memberOf editor
    * @constructor
    */
@@ -511,29 +518,6 @@ var editor = (function() {
   };
   Circle.prototype = Object.create(Shape.prototype);
   /**
-   * Создаёт новый Box.
-   * @memberOf editor
-   * @constructor
-   */
-  var Box = function(options) {
-    Shape.call(this, options);
-    this.width = options.width || 1;
-    this.height = options.height || 1;
-
-    this.draw = function() {
-      ctx.save();
-      ctx.translate(this.x * scale, this.y * scale);
-      ctx.rotate(this.angle);
-      ctx.translate(-(this.x) * scale, -(this.y) * scale);
-      ctx.fillStyle = this.color;
-      ctx.fillRect((this.x - (this.width / 2)) * scale, (this.y - (this.height / 2)) * scale, this.width * scale,
-          this.height * scale);
-      ctx.restore();
-    };
-  };
-  Box.prototype = Object.create(Shape.prototype);
-
-  /**
    * @memberOf editor
    */
   var mechanism = (function() {
@@ -550,6 +534,7 @@ var editor = (function() {
 
     /**
      * Создаёт новый Element.
+     * 
      * @memberOf mechanism
      * @constructor
      */
@@ -602,22 +587,29 @@ var editor = (function() {
       if (type != this.type) {
         if (type == pointTypes.clockwiseFixed) {
           // добавляем вращение
-          this.motor = new Circle({id: -1, x: this.x, y: this.y});
+          this.motor = new Circle({
+            id: -1,
+            x: this.x,
+            y: this.y,
+            radius: 0.1,
+            isStatic: true
+          });
           var body = box2d.addToWorld(this.motor);
           this.motor.body = body;
           var joint = new b2RevoluteJointDef();
           joint.enableMotor = true;
-          joint.maxMotorTorque = 10;
+          joint.maxMotorTorque = 20;
           joint.motorSpeed = 5;
-          joint.Initialize(this.body, this.motor.body, this.body.GetWorldCenter());
+          joint.Initialize(this.motor.body, this.body, this.body.GetWorldCenter());
           world.CreateJoint(joint);
         } else if (this.type == pointTypes.clockwiseFixed) {
           // убираем вращение
-          
+          world.DestroyBody(this.motor.body);
+          this.motor = null;
         }
-        
+
         this.type = type;
-        this.isStatic = (type == pointTypes.fixed || type == pointTypes.clockwiseFixed);
+        this.isStatic = (type == pointTypes.fixed);
         box2d.refresh.bodyType(this);
       }
     };
@@ -673,7 +665,7 @@ var editor = (function() {
       }
 
       ctx.beginPath();
-      ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, true);
+      ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 1.5, false);
       ctx.closePath();
       ctx.fill();
 
@@ -687,8 +679,8 @@ var editor = (function() {
         ctx.lineTo((this.x - this.radius) * scale, (this.y + this.radius) * scale);
         ctx.closePath();
         ctx.stroke();
-      }      
-      
+      }
+
       // точка вращается - рисуем дугу
       if (this.type == pointTypes.clockwiseFixed) {
         ctx.strokeStyle = this.color;
@@ -696,7 +688,7 @@ var editor = (function() {
         ctx.beginPath();
         ctx.arc(this.x * scale, this.y * scale, this.radius * scale + 3, 0, Math.PI * 1.5, false);
         ctx.stroke();
-      }     
+      }
       ctx.restore();
     };
 
@@ -713,7 +705,7 @@ var editor = (function() {
     Edge.prototype = Object.create(Element.prototype);
     Edge.prototype.width = 0.2;
     /**
-     * Удаляет себя из концевых точек. 
+     * Удаляет себя из концевых точек.
      */
     Edge.prototype.removeFromPoints = function() {
       var index = this.p1.edges.indexOf(this);
@@ -732,6 +724,8 @@ var editor = (function() {
       var joint = new b2RevoluteJointDef();
       joint.Initialize(point.body, this.body, point.body.GetWorldCenter());
       world.CreateJoint(joint);
+
+      var fix = point.body.GetFixtureList().categoryBits = 0x0001;
     };
     Edge.prototype.destroy = function() {
       world.DestroyBody(this.body);
@@ -742,7 +736,7 @@ var editor = (function() {
     Edge.prototype.draw = function() {
       ctx.save();
       ctx.translate(this.x * scale, this.y * scale);
-      //ctx.rotate(this.angle);
+      // ctx.rotate(this.angle);
       ctx.translate(-(this.x) * scale, -(this.y) * scale);
 
       if (this.isSelected()) {
@@ -761,6 +755,7 @@ var editor = (function() {
 
     /**
      * Создаёт точку с заданными параметрами.
+     * 
      * @memberOf mechanism
      */
     var createPoint = function(options) {
@@ -771,6 +766,7 @@ var editor = (function() {
     };
     /**
      * Создает ребро между двумя точками.
+     * 
      * @memberOf mechanism
      */
     var createEdge = function(p1, p2) {
@@ -789,13 +785,14 @@ var editor = (function() {
     };
     /**
      * Соединяет все точки рёбрами.
+     * 
      * @memberOf mechanism
      */
     var connectPoints = function(points) {
-      for (var i in points) {
-        for (var j in points) {
+      for ( var i in points) {
+        for ( var j in points) {
           if (j > i) {
-            createEdge(points[i],  points[j]);
+            createEdge(points[i], points[j]);
           }
         }
       }
@@ -828,6 +825,7 @@ var editor = (function() {
     };
     /**
      * Показывает данные элемента на панели
+     * 
      * @memberOf mechanism
      */
     var showInfo = function(element) {
@@ -874,13 +872,13 @@ var editor = (function() {
                   // убираем выделение со всех элементовэ
                   selectedElements = [];
                 }
-                
+
                 element.select();
 
                 if (selectedElements.length == 2 && selectedElements[0] instanceof Point
-                && selectedElements[1] instanceof Point) {
-                  connectPoints(selectedElements);      
-                }                
+                    && selectedElements[1] instanceof Point) {
+                  connectPoints(selectedElements);
+                }
 
                 element.isActive = true;
               }
@@ -960,12 +958,16 @@ var editor = (function() {
       },
       /**
        * Устанавливает значение параметра точки для последнего выбранного тела.
-       * @param what Какой параметр менять.
-       * @param value Значение параметра.
+       * 
+       * @param what
+       *          Какой параметр менять.
+       * @param value
+       *          Значение параметра.
        */
       setPoint: function(what, value) {
-        var element = getElementOfBody(currentBody);
+        var element = selectedElements.pop();
         if (element) {
+          selectedElements.push(element);
           if (element instanceof Point) {
             if (what == 'type') {
               element.setType(value);
@@ -976,7 +978,7 @@ var editor = (function() {
               } else if (what == 'y' && box2d.isValid.y(value)) {
                 newY = value;
               }
-              
+
               element.setPosition(newX, newY);
             }
           }
@@ -1022,9 +1024,9 @@ var editor = (function() {
       },
       /**
        * Загружает механизм из строки.
-       */ 
+       */
       load: function(newState) {
-        
+
       },
       save: function() {
         var json = "";
