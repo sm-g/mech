@@ -2,38 +2,85 @@
 <html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-    <title>Mechanism</title>
+    <title>Mechanism: редактор структурных механизмов</title>
     <link rel="stylesheet" href="styles.css" charset="utf-8" />
   </head>
-  <body id="context">
-    <div id="area" style="padding:10px; background-color: green;">
-      <canvas id="canvas" width="800" height="300" style="background-color:#333333;" >Браузер не показывает canvas</canvas>
+  <body>
+    <div id="area">
+      <canvas id="canvas" width="800" height="300" >Браузер не показывает canvas</canvas>
     </div>
     <form id="dashboard">
-      <label for="current-state">Текущее состояние</label>
-      <textarea id="current-state"></textarea>
-      <button id="load" type="button">Загрузить</button>
-      <button id="play" type="button">Старт</button>
-      <button id="pause" type="button">Пауза</button>
-      <button id="stop" type="button">Стоп</button>
-      <input id="scale" type="range" min="5" max="30" step="1" value="15"></input>
-      <div>
-        <label for="element-id"><span id="element-name">Точка</span> №</label>
-        <input id="element-id" readonly></input>
-        <label for="point-type">Тип</label>
-        <select id="point-type">
-          <option value="fixed">Опора</option>
-          <option value="clockwiseFixed">Вращается</option>
-          <option value="joint">Свободная</option>
-        </select>
-        <label for="point-x">X</label>
-        <input id="point-x"></input>
-        <label for="point-y">Y</label>
-        <input id="point-y"></input>
-        <label for="edge-points">Точки</label>
-        <input id="edge-points"></input>
-        <label for="edge-length">Длина</label>
-        <input id="edge-length" readonly></input>
+      <div class="loader dashboard-block">
+        <label for="current-state">Текущее состояние</label>
+        <textarea id="current-state"></textarea>
+        <button id="load" type="button">Загрузить</button>
+      </div>
+      <div class="commands dashboard-block">
+        <span>Симуляция</span>
+        <button id="play" type="button">Старт</button>
+        <button id="pause" type="button">Пауза</button>
+        <button id="stop" type="button">Стоп</button>
+      </div>
+      <div class="zoom dashboard-block">
+        <label for="scale">Масштаб</label>
+        <input id="scale" type="range" min="5" max="30" step="1" value="15"></input>
+      </div>
+      <div class="info dashboard-block">
+        <table>
+          <th><td>Активный элемент</td></th>
+          <tr>
+            <td>
+              <label for="element-id"><span id="element-name">Точка</span> №</label>
+            </td>
+            <td>
+              <input id="element-id" readonly></input>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <label for="point-type">Тип</label>
+            </td>
+            <td>
+              <select id="point-type">
+                <option value="fixed">Опора</option>
+                <option value="clockwiseFixed">Вращается</option>
+                <option value="joint">Свободная</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <label for="point-x">X</label>
+            </td>
+            <td>
+              <input id="point-x"></input>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <label for="point-y">Y</label>
+            </td>
+            <td>
+              <input id="point-y"></input>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <label for="edge-points">Точки</label>
+            </td>
+            <td>
+              <input id="edge-points" readonly></input>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <label for="edge-length">Длина</label>
+            </td>
+            <td>
+              <input id="edge-length" readonly></input>
+            </td>
+          </tr>
+        </table>
       </div>
     </form>
   </body>
