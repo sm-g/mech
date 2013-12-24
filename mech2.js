@@ -15,7 +15,7 @@ var editor = (function() {
   // режим отладки
   var debug = true;
 
-  var scale, canvas, ctx, world, fixDef, selectedBody;
+  var scale, canvas, ctx, world, fixDef;
   /**
    * Кнопки управления симуляцией.
    * 
@@ -55,7 +55,7 @@ var editor = (function() {
     /**
      * @memberOf colors
      */
-    active: '#BBB',
+    active: '#fc6e06',
     defaults: '#555'
   }
   /**
@@ -328,7 +328,7 @@ var editor = (function() {
         var aabb = new b2AABB();
         aabb.lowerBound.Set(mouse.x - 0.001, mouse.y - 0.001);
         aabb.upperBound.Set(mouse.x + 0.001, mouse.y + 0.001);
-        selectedBody = null;
+        var selectedBody = null;
         world.QueryAABB(getBodyCB, aabb);
         return selectedBody;
       }
@@ -586,30 +586,36 @@ var editor = (function() {
     Point.prototype.setType = function(type) {
       if (type != this.type) {
         if (type == pointTypes.clockwiseFixed) {
-          // добавляем вращение
-          this.motor = new Circle({
-            id: -1,
-            x: this.x,
-            y: this.y,
-            radius: 0.1,
-            isStatic: true
-          });
-          var body = box2d.addToWorld(this.motor);
-          this.motor.body = body;
-          var joint = new b2RevoluteJointDef();
-          joint.enableMotor = true;
-          joint.maxMotorTorque = 20;
-          joint.motorSpeed = 5;
-          joint.Initialize(this.motor.body, this.body, this.body.GetWorldCenter());
-          world.CreateJoint(joint);
+          for (var j = this.body.GetJointList(); j; j = j.next) {
+            //j.joint.EnableMotor(true);
+            var a = j.joint.m_bodyA;
+            var b = j.joint.m_bodyB;
+            world.DestroyJoint(j.joint);
+            var joint = new b2RevoluteJointDef();
+            joint.maxMotorTorque = 2000;
+            joint.motorSpeed = 2000;
+            joint.enableMotor = true;
+            joint.Initialize(a, b, a.GetWorldCenter());
+           // joint.collideConnected = true;
+            world.CreateJoint(joint);
+          }
         } else if (this.type == pointTypes.clockwiseFixed) {
           // убираем вращение
-          world.DestroyBody(this.motor.body);
-          this.motor = null;
+          for (var j = this.body.GetJointList(); j; j = j.next) {
+            var a = j.joint.m_bodyA;
+            var b = j.joint.m_bodyB;
+            world.DestroyJoint(j.joint);
+            
+            this.body.SetAngle(0);
+            
+            var joint = new b2RevoluteJointDef();
+            joint.Initialize(a, b, a.GetWorldCenter());
+            world.CreateJoint(joint);
+          }
         }
 
         this.type = type;
-        this.isStatic = (type == pointTypes.fixed);
+        this.isStatic = (type != pointTypes.joint);
         box2d.refresh.bodyType(this);
       }
     };
@@ -723,9 +729,10 @@ var editor = (function() {
     Edge.prototype.joinToPoint = function(point) {
       var joint = new b2RevoluteJointDef();
       joint.Initialize(point.body, this.body, point.body.GetWorldCenter());
+      joint.maxMotorTorque = 20;
+      joint.motorSpeed = 5;
+     // joint.collideConnected = true;
       world.CreateJoint(joint);
-
-      var fix = point.body.GetFixtureList().categoryBits = 0x0001;
     };
     Edge.prototype.destroy = function() {
       world.DestroyBody(this.body);
@@ -745,7 +752,7 @@ var editor = (function() {
         ctx.strokeStyle = colors.defaults;
       }
 
-      ctx.lineWidth = scale / 10 | 0; // целая часть
+      ctx.lineWidth = scale / 5 | 0; // целая часть
       ctx.beginPath();
       ctx.moveTo(this.p1.x * scale, this.p1.y * scale);
       ctx.lineTo(this.p2.x * scale, this.p2.y * scale);
@@ -869,7 +876,7 @@ var editor = (function() {
             if (element instanceof Point || element instanceof Edge) {
               if (!element.isSelected()) {
                 if (!mouse.isCtrl) {
-                  // убираем выделение со всех элементовэ
+                  // убираем выделение со всех элементов
                   selectedElements = [];
                 }
 
@@ -877,7 +884,7 @@ var editor = (function() {
 
                 if (selectedElements.length == 2 && selectedElements[0] instanceof Point
                     && selectedElements[1] instanceof Point) {
-                  connectPoints(selectedElements);
+                  connectPoints(selectedElements); 
                 }
 
                 element.isActive = true;
@@ -1010,14 +1017,12 @@ var editor = (function() {
        */
       start: function() {
         world.paused = false;
-        world.SetGravity(new b2Vec2(0, 2));
       },
       /**
        * Останавливает симуляцию.
        */
       pause: function() {
         world.paused = true;
-        world.SetGravity(new b2Vec2(0, 0));
         for ( var i in elements) {
           elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
         }
