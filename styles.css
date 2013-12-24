@@ -1,10 +1,15 @@
+html, body {
+	height: 100%;
+}
+
 #area {
-	margin: 5px;
+	margin: 0px;
 	padding: 0;
 	font-size: 0;
 	-webkit-box-shadow: 0px 0px 10px rgba(50, 50, 50, 0.75);
 	-moz-box-shadow:    0px 0px 10px rgba(50, 50, 50, 0.75);
 	box-shadow:         0px 0px 10px rgba(50, 50, 50, 0.75);
+	height: 50%;
 }
 
 #canvas {
@@ -13,6 +18,10 @@
 
 #current-state, #scale {
 	display: block;
+}
+
+#dashboard {
+	margin-top: 20px;
 }
 
 .dashboard-block {

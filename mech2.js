@@ -15,7 +15,7 @@ var editor = (function() {
   // режим отладки
   var debug = true;
 
-  var scale, canvas, ctx, world, fixDef;
+  var scale, canvas, area, ctx, world, fixDef;
   /**
    * Кнопки управления симуляцией.
    * 
@@ -85,6 +85,7 @@ var editor = (function() {
      */
     start: function() {
       canvas = document.getElementById("canvas");
+      area = document.getElementById("area");
       controls.play = document.getElementById("play");
       controls.pause = document.getElementById("pause");
       controls.stop = document.getElementById("stop");
@@ -396,13 +397,15 @@ var editor = (function() {
      * Обновляет положения элементов.
      */
     update: function() {
+      canvas.height = area.clientHeight;
+      canvas.width = area.clientWidth;
       for ( var b = world.GetBodyList(); b; b = b.m_next) {
         var id = b.GetUserData();
         if (b.IsActive() && typeof id !== 'undefined' && id != null && id > -1) {
           mechanism.getElement(id).update(box2d.get.bodySpec(b));
         }
       }
-      dashboard.currentState.value = mechanism.save();
+      dashboard.currentState.value = mechanism.save();      
     },
     draw: function() {
       if (debug) {
@@ -746,9 +749,6 @@ var editor = (function() {
     Edge.prototype.joinToPoint = function(point) {
       var joint = new b2RevoluteJointDef();
       joint.Initialize(point.body, this.body, point.body.GetWorldCenter());
-      joint.maxMotorTorque = 20;
-      joint.motorSpeed = 5;
-      // joint.collideConnected = true;
       world.CreateJoint(joint);
     };
     Edge.prototype.destroy = function() {
@@ -760,7 +760,6 @@ var editor = (function() {
     Edge.prototype.draw = function() {
       ctx.save();
       ctx.translate(this.x * scale, this.y * scale);
-      // ctx.rotate(this.angle);
       ctx.translate(-(this.x) * scale, -(this.y) * scale);
 
       if (this.isSelected()) {
