@@ -405,7 +405,7 @@ var editor = (function() {
           mechanism.getElement(id).update(box2d.get.bodySpec(b));
         }
       }
-      dashboard.currentState.value = mechanism.save();      
+      dashboard.currentState.value = mechanism.save();
     },
     draw: function() {
       if (debug) {
@@ -570,13 +570,31 @@ var editor = (function() {
     Element.prototype.isSelected = function() {
       return selectedElements.indexOf(this) != -1;
     };
-    
+
     Element.prototype.isPoint = function() {
       return isPoint(this);
     }
     Element.prototype.isEdge = function() {
       return isEdge(this);
     }
+    /**
+     * Соединяет два элемента шарнирной связью.
+     */
+    Element.prototype.join = function(element, makeMotor) {
+      var joint = new b2RevoluteJointDef();
+      if (makeMotor) {
+        joint.maxMotorTorque = 2000;
+        joint.motorSpeed = 2000;
+        joint.enableMotor = true;
+      }
+      if (this.isEdge()) {
+        joint.Initialize(element.body, this.body, element.body.GetWorldCenter());
+      }
+      else {
+        joint.Initialize(element.body, this.body, this.body.GetWorldCenter());
+      }
+      world.CreateJoint(joint);
+    };
 
     /**
      * @memberOf mechanism
@@ -586,13 +604,11 @@ var editor = (function() {
       this.type = options.type || pointTypes.joint;
       this.radius = options.radius || 1;
       this.edges = [];
-      // точка перемещается, потеряв все связи
-      // с другими точками
+      // точка перемещается, потеряв связи с другими точками
       this.isFlying = false;
       this.motor = null;
     };
     Point.prototype = Object.create(Element.prototype);
-    Point.prototype.radius = 1;
     Point.prototype.setPosition = function(x, y) {
       this.x = x;
       this.y = y;
@@ -604,30 +620,23 @@ var editor = (function() {
     Point.prototype.setType = function(type) {
       if (type != this.type) {
         if (type == pointTypes.clockwiseFixed) {
+          // добавляем шарниры
           for ( var j = this.body.GetJointList(); j; j = j.next) {
-            var a = j.joint.m_bodyA;
-            var b = j.joint.m_bodyB;
+            var a = getElementOfBody(j.joint.m_bodyA);
+            var b = getElementOfBody(j.joint.m_bodyB);
             world.DestroyJoint(j.joint);
 
-            var joint = new b2RevoluteJointDef();
-            joint.maxMotorTorque = 2000;
-            joint.motorSpeed = 2000;
-            joint.enableMotor = true;
-            joint.Initialize(a, b, a.GetWorldCenter());
-            world.CreateJoint(joint);
+            a.join(b, true);
           }
         } else if (this.type == pointTypes.clockwiseFixed) {
-          // убираем вращение
+          // убираем шарниры
           for ( var j = this.body.GetJointList(); j; j = j.next) {
-            var a = j.joint.m_bodyA;
-            var b = j.joint.m_bodyB;
+            var a = getElementOfBody(j.joint.m_bodyA);
+            var b = getElementOfBody(j.joint.m_bodyB);
             world.DestroyJoint(j.joint);
 
             this.body.SetAngle(0);
-
-            var joint = new b2RevoluteJointDef();
-            joint.Initialize(a, b, a.GetWorldCenter());
-            world.CreateJoint(joint);
+            a.join(b);
           }
         }
 
@@ -743,14 +752,6 @@ var editor = (function() {
       var pp = new paper.Point(this.p1.x + this.p2.x, this.p1.y + this.p2.y);
       return pp.length;
     };
-    /**
-     * Соединяет ребро с точкой.
-     */
-    Edge.prototype.joinToPoint = function(point) {
-      var joint = new b2RevoluteJointDef();
-      joint.Initialize(point.body, this.body, point.body.GetWorldCenter());
-      world.CreateJoint(joint);
-    };
     Edge.prototype.destroy = function() {
       world.DestroyBody(this.body);
       var index = elements.indexOf(this);
@@ -815,8 +816,8 @@ var editor = (function() {
       var body = box2d.addToWorld(edge);
       edge.body = body;
 
-      edge.joinToPoint(p1);
-      edge.joinToPoint(p2);
+      edge.join(p1, p1.type == pointTypes.clockwiseFixed);
+      edge.join(p2, p2.type == pointTypes.clockwiseFixed);
     };
     /**
      * Соединяет все точки рёбрами.
@@ -838,14 +839,8 @@ var editor = (function() {
      */
     var getElementOfBody = function(body) {
       if (body) {
-        var element;
-        for ( var i in elements) {
-          if (elements[i].body == body) {
-            element = elements[i];
-            break;
-          }
-        }
-        return element;
+        var id = body.GetUserData();        
+        return mechanism.getElement(id);
       }
     };
     /**
