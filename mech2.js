@@ -878,8 +878,8 @@ var editor = (function() {
         dashboard.pointType.style.display = "block";
         dashboard.pointX.style.display = "block";
         dashboard.pointY.style.display = "block";
-        dashboard.pointX.value = element.x;
-        dashboard.pointY.value = element.y;
+        dashboard.pointX.value = element.x.toFixed(3);
+        dashboard.pointY.value = element.y.toFixed(3);
         dashboard.pointType.selectedIndex = element.type;
       } else {
         dashboard.elementName.innerHTML = 'Звено';
@@ -888,7 +888,7 @@ var editor = (function() {
         dashboard.pointType.style.display = "none";
         dashboard.pointX.style.display = "none";
         dashboard.pointY.style.display = "none";
-        dashboard.edgeLength.value = element.getLength();
+        dashboard.edgeLength.value = element.getLength().toFixed(3);
         dashboard.edgePoints.value = element.p1.id + '   ' + element.p2.id;
       }
       dashboard.elementId.value = element.id;
