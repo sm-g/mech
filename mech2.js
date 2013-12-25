@@ -15,7 +15,7 @@ var editor = (function() {
   // режим отладки
   var debug = true;
 
-  var scale, canvas, area, ctx, world, fixDef;
+  var scale, canvas, ctx, world;
   /**
    * Кнопки управления симуляцией.
    * 
@@ -84,8 +84,7 @@ var editor = (function() {
      * @memberOf init
      */
     start: function() {
-      canvas = document.getElementById("canvas");
-      area = document.getElementById("area");
+      canvas = document.getElementById("canvas");      
       controls.play = document.getElementById("play");
       controls.pause = document.getElementById("pause");
       controls.stop = document.getElementById("stop");
@@ -184,7 +183,10 @@ var editor = (function() {
   /**
    * @memberOf editor
    */
-  var box2d = {
+  var box2d = (function() {
+    var fixDef;
+    
+    return {
     /**
      * Добавляет в мир тело для соответствующей фигуры.
      * 
@@ -371,51 +373,62 @@ var editor = (function() {
         return val >= 0 && val <= canvas.height / scale;
       }
     }
-  };
+  }
+  })();
 
   /**
    * @memberOf editor
    */
-  var loop = {
-    /**
-     * Цикл симуляции.
-     * 
-     * @memberOf loop
-     */
-    process: function() {
-      loop.step();
-      loop.update();
-      loop.draw();
-      requestAnimFrame(loop.process);
-    },
-    step: function() {
-      var stepRate = 1 / 60;
-      world.Step(stepRate, 10, 10);
-      world.ClearForces();
-    },
-    /**
-     * Обновляет положения элементов.
-     */
-    update: function() {
-      canvas.height = area.clientHeight;
-      canvas.width = area.clientWidth;
-      for ( var b = world.GetBodyList(); b; b = b.m_next) {
-        var id = b.GetUserData();
-        if (b.IsActive() && typeof id !== 'undefined' && id != null && id > -1) {
-          mechanism.getElement(id).update(box2d.get.bodySpec(b));
+  var loop = (function() {
+    var stepRate = 1 / 60;
+    var area = document.getElementById("area");
+    return {
+      /**
+       * Цикл симуляции.
+       * 
+       * @memberOf loop
+       */
+      process: function() {
+        loop.step();
+        loop.update();
+        loop.draw();
+        requestAnimFrame(loop.process);
+      },
+      step: function() {        
+        world.Step(stepRate, 10, 10);
+        world.ClearForces();
+      },
+      /**
+       * Обновляет положения элементов.
+       */
+      update: function() {
+        canvas.height = area.clientHeight;
+        canvas.width = area.clientWidth;
+        for ( var b = world.GetBodyList(); b; b = b.m_next) {
+          var id = b.GetUserData();
+          if (b.IsActive() && typeof id !== 'undefined' && id != null && id > -1) {
+            mechanism.getElement(id).update(box2d.get.bodySpec(b));
+          }
+        }
+        dashboard.currentState.value = mechanism.save();
+      },
+      draw: function() {
+        if (debug) {
+          world.DrawDebugData();
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        mechanism.draw();
+      },
+      toggleState: function() {
+        if (stepRate) {
+          stepRate = 0;
+        } else {
+          stepRate = 1/60;
         }
       }
-      dashboard.currentState.value = mechanism.save();
-    },
-    draw: function() {
-      if (debug) {
-        world.DrawDebugData();
-      } else {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-      mechanism.draw();
     }
-  };
+  })();
 
   /**
    * @memberOf editor
@@ -589,8 +602,7 @@ var editor = (function() {
       }
       if (this.isEdge()) {
         joint.Initialize(element.body, this.body, element.body.GetWorldCenter());
-      }
-      else {
+      } else {
         joint.Initialize(element.body, this.body, this.body.GetWorldCenter());
       }
       world.CreateJoint(joint);
@@ -839,7 +851,7 @@ var editor = (function() {
      */
     var getElementOfBody = function(body) {
       if (body) {
-        var id = body.GetUserData();        
+        var id = body.GetUserData();
         return mechanism.getElement(id);
       }
     };
@@ -1037,15 +1049,17 @@ var editor = (function() {
        */
       start: function() {
         world.paused = false;
+        loop.toggleState();
       },
       /**
        * Останавливает симуляцию.
        */
       pause: function() {
         world.paused = true;
-        for ( var i in elements) {
-          elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
-        }
+        loop.toggleState();
+       //for ( var i in elements) {
+       //   elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
+        
       },
       /**
        * Загружает механизм из строки.
