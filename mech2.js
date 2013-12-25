@@ -201,6 +201,7 @@ var editor = (function() {
         fixDef.shape = new b2CircleShape(shape.radius);
       } else if (shape instanceof mechanism.Edge) {
         fixDef.shape = new b2PolygonShape;
+        // ребро в виде узкого ромба
         var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2, (shape.p1.y + shape.p2.y) / 2);
         var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y - shape.p2.y).normalize(shape.width);
         var pp1 = paperPoint.rotate(90);
@@ -265,13 +266,13 @@ var editor = (function() {
         }
       },
       /**
-       * Настраивает общий fixture definition.
+       * Настраивает физику тел по умолчанию.
        */
       defaultFixture: function() {
         fixDef = new b2FixtureDef;
-        fixDef.density = 10.0; // плотность
-        fixDef.friction = 1; // трение
-        fixDef.restitution = 0.0; // упругость
+        fixDef.density = 1.0; // плотность
+        fixDef.friction = 0; // трение
+        fixDef.restitution = 0; // упругость
       },
       /**
        * Создает body definition для фигуры.
