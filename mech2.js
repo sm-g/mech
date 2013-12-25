@@ -75,6 +75,35 @@ var editor = (function() {
   }
 
   /**
+   * Показывает данные элемента на панели
+   * 
+   * @memberOf mechanism
+   */
+  var showInfo = function(element) {
+    if (element instanceof mechanism.Point) {
+      dashboard.elementName.innerHTML = 'Пара';
+      dashboard.edgeLength.style.display = "none";
+      dashboard.edgePoints.style.display = "none";
+      dashboard.pointType.style.display = "block";
+      dashboard.pointX.style.display = "block";
+      dashboard.pointY.style.display = "block";
+      dashboard.pointX.value = element.x.toFixed(3);
+      dashboard.pointY.value = element.y.toFixed(3);
+      dashboard.pointType.selectedIndex = element.type;
+    } else if (element instanceof mechanism.Edge) {
+      dashboard.elementName.innerHTML = 'Звено';
+      dashboard.edgeLength.style.display = "block";
+      dashboard.edgePoints.style.display = "block";
+      dashboard.pointType.style.display = "none";
+      dashboard.pointX.style.display = "none";
+      dashboard.pointY.style.display = "none";
+      dashboard.edgeLength.value = element.getLength().toFixed(3);
+      dashboard.edgePoints.value = element.p1.id + '   ' + element.p2.id;
+    }
+    dashboard.elementId.value = element.id;
+  }
+
+  /**
    * Инициализатор редактора.
    * 
    * @memberOf editor
@@ -84,7 +113,7 @@ var editor = (function() {
      * @memberOf init
      */
     start: function() {
-      canvas = document.getElementById("canvas");      
+      canvas = document.getElementById("canvas");
       controls.play = document.getElementById("play");
       controls.pause = document.getElementById("pause");
       controls.stop = document.getElementById("stop");
@@ -118,6 +147,10 @@ var editor = (function() {
 
       controls.pause.addEventListener('click', function(e) {
         mechanism.pause();
+      }, false);
+
+      controls.stop.addEventListener('click', function(e) {
+        mechanism.stop();
       }, false);
 
       controls.load.addEventListener('click', function(e) {
@@ -185,203 +218,204 @@ var editor = (function() {
    */
   var box2d = (function() {
     var fixDef;
-    
+
     return {
-    /**
-     * Добавляет в мир тело для соответствующей фигуры.
-     * 
-     * @memberOf box2d
-     * @param shape
-     * @returns Созданное тело.
-     */
-    addToWorld: function(shape) {
-      var bodyDef = this.create.bodyDef(shape);
-
-      if (shape instanceof Circle || shape instanceof mechanism.Point) {
-        fixDef.shape = new b2CircleShape(shape.radius);
-      } else if (shape instanceof mechanism.Edge) {
-        fixDef.shape = new b2PolygonShape;
-        // ребро в виде узкого ромба
-        var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2, (shape.p1.y + shape.p2.y) / 2);
-        var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y - shape.p2.y).normalize(shape.width);
-        var pp1 = paperPoint.rotate(90);
-        var pp2 = paperPoint.rotate(-90);
-        fixDef.shape.SetAsArray([new b2Vec2(shape.p1.x - middleP.x, shape.p1.y - middleP.y), new b2Vec2(pp1.x, pp1.y),
-            new b2Vec2(shape.p2.x - middleP.x, shape.p2.y - middleP.y), new b2Vec2(pp2.x, pp2.y)]);
-
-        bodyDef.position.x = middleP.x;
-        bodyDef.position.y = middleP.y;
-      }
-
-      var body = world.CreateBody(bodyDef);
-      body.CreateFixture(fixDef);
-      return body;
-    },
-    create: {
       /**
-       * Создает мир.
+       * Добавляет в мир тело для соответствующей фигуры.
        * 
-       * @memberOf create
-       */
-      world: function() {
-        world = new b2World(new b2Vec2(0, 0), false);
-        world.paused = true;
-        var filter = new b2ContactFilter();
-        /**
-         * @returns Должны ли сталкиваться два fixture. Сталкиваются соединённые
-         *          ребро и точка.
-         */
-        filter.ShouldCollide = function(fixtureA, fixtureB) {
-          var e1 = mechanism.getElement(fixtureA.GetBody().GetUserData());
-          var e2 = mechanism.getElement(fixtureB.GetBody().GetUserData());
-
-          if (e1 instanceof mechanism.Edge) {
-            var edge = e1;
-            if (e2 instanceof mechanism.Point) {
-              var point = e2;
-            }
-          } else if (e2 instanceof mechanism.Edge) {
-            var edge = e2;
-            if (e1 instanceof mechanism.Point) {
-              var point = e1;
-            }
-          }
-          if (point && edge) {
-            return point.edges.indexOf(edge) != -1;
-          }
-
-          return false;
-        }
-
-        world.SetContactFilter(filter);
-
-        if (debug) {
-          var debugDraw = new b2DebugDraw();
-          debugDraw.SetSprite(ctx);
-          debugDraw.SetDrawScale(scale);
-          debugDraw.SetFillAlpha(0.5);
-          debugDraw.SetLineThickness(1.0);
-          debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
-          world.SetDebugDraw(debugDraw);
-        }
-      },
-      /**
-       * Настраивает физику тел по умолчанию.
-       */
-      defaultFixture: function() {
-        fixDef = new b2FixtureDef;
-        fixDef.density = 1.0; // плотность
-        fixDef.friction = 0; // трение
-        fixDef.restitution = 0; // упругость
-      },
-      /**
-       * Создает body definition для фигуры.
-       * 
+       * @memberOf box2d
        * @param shape
-       * @returns body definition
+       * @returns Созданное тело.
        */
-      bodyDef: function(shape) {
-        var bodyDef = new b2BodyDef;
-        if (shape.isStatic) {
-          bodyDef.type = b2Body.b2_staticBody;
-        } else {
-          bodyDef.type = b2Body.b2_dynamicBody;
-        }
-        bodyDef.position.x = shape.x;
-        bodyDef.position.y = shape.y;
-        bodyDef.userData = shape.id;
-        bodyDef.angle = shape.angle;
+      addToWorld: function(shape) {
+        var bodyDef = this.create.bodyDef(shape);
 
-        return bodyDef;
-      }
-    },
-    get: {
-      /**
-       * @memberof get
-       * @param b
-       * @returns Параметры тела: координаты, угол, центр, id-элемента
-       */
-      bodySpec: function(b) {
-        return {
-          x: b.GetPosition().x,
-          y: b.GetPosition().y,
-          angle: b.GetAngle(),
-          center: {
-            x: b.GetWorldCenter().x,
-            y: b.GetWorldCenter().y
-          },
-          elementId: b.GetUserData()
-        };
+        if (shape instanceof Circle || shape instanceof mechanism.Point) {
+          fixDef.shape = new b2CircleShape(shape.radius);
+        } else if (shape instanceof mechanism.Edge) {
+          fixDef.shape = new b2PolygonShape;
+          // ребро в виде узкого ромба
+          var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2, (shape.p1.y + shape.p2.y) / 2);
+          var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y - shape.p2.y).normalize(shape.width);
+          var pp1 = paperPoint.rotate(90);
+          var pp2 = paperPoint.rotate(-90);
+          fixDef.shape.SetAsArray([new b2Vec2(shape.p1.x - middleP.x, shape.p1.y - middleP.y),
+              new b2Vec2(pp1.x, pp1.y), new b2Vec2(shape.p2.x - middleP.x, shape.p2.y - middleP.y),
+              new b2Vec2(pp2.x, pp2.y)]);
+
+          bodyDef.position.x = middleP.x;
+          bodyDef.position.y = middleP.y;
+        }
+
+        var body = world.CreateBody(bodyDef);
+        body.CreateFixture(fixDef);
+        return body;
       },
-      /**
-       * @param dynamicOnly
-       *          Флаг поиска только нестатических тел.
-       * @returns Тело, на которое указывает мышь.
-       */
-      bodyAtMouse: function(dynamicOnly) {
-        var getBodyCB = function(fixture) {
-          if (!dynamicOnly || fixture.GetBody().GetType() != b2Body.b2_staticBody) {
-            if (fixture.GetShape().TestPoint(fixture.GetBody().GetTransform(), mousePVec)) {
-              selectedBody = fixture.GetBody();
-              return false;
+      create: {
+        /**
+         * Создает мир.
+         * 
+         * @memberOf create
+         */
+        world: function() {
+          world = new b2World(new b2Vec2(0, 0), false);
+          world.paused = true;
+          var filter = new b2ContactFilter();
+          /**
+           * @returns Должны ли сталкиваться два fixture. Сталкиваются
+           *          соединённые ребро и точка.
+           */
+          filter.ShouldCollide = function(fixtureA, fixtureB) {
+            var e1 = mechanism.getElement(fixtureA.GetBody().GetUserData());
+            var e2 = mechanism.getElement(fixtureB.GetBody().GetUserData());
+
+            if (e1 instanceof mechanism.Edge) {
+              var edge = e1;
+              if (e2 instanceof mechanism.Point) {
+                var point = e2;
+              }
+            } else if (e2 instanceof mechanism.Edge) {
+              var edge = e2;
+              if (e1 instanceof mechanism.Point) {
+                var point = e1;
+              }
             }
+            if (point && edge) {
+              return point.edges.indexOf(edge) != -1;
+            }
+
+            return false;
           }
-          return true;
-        }
 
-        var mousePVec = new b2Vec2(mouse.x, mouse.y);
-        var aabb = new b2AABB();
-        aabb.lowerBound.Set(mouse.x - 0.001, mouse.y - 0.001);
-        aabb.upperBound.Set(mouse.x + 0.001, mouse.y + 0.001);
-        var selectedBody = null;
-        world.QueryAABB(getBodyCB, aabb);
-        return selectedBody;
-      }
+          world.SetContactFilter(filter);
 
-    },
-    refresh: {
-      /**
-       * Обновляет тип тела для элемента.
-       * 
-       * @param element
-       */
-      bodyType: function(element) {
-        var body = element.body;
-        if (element.isStatic) {
-          body.SetType(b2Body.b2_staticBody)
-        } else {
-          body.SetType(b2Body.b2_dynamicBody);
+          if (debug) {
+            var debugDraw = new b2DebugDraw();
+            debugDraw.SetSprite(ctx);
+            debugDraw.SetDrawScale(scale);
+            debugDraw.SetFillAlpha(0.5);
+            debugDraw.SetLineThickness(1.0);
+            debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
+            world.SetDebugDraw(debugDraw);
+          }
+        },
+        /**
+         * Настраивает физику тел по умолчанию.
+         */
+        defaultFixture: function() {
+          fixDef = new b2FixtureDef;
+          fixDef.density = 1.0; // плотность
+          fixDef.friction = 0; // трение
+          fixDef.restitution = 0; // упругость
+        },
+        /**
+         * Создает body definition для фигуры.
+         * 
+         * @param shape
+         * @returns body definition
+         */
+        bodyDef: function(shape) {
+          var bodyDef = new b2BodyDef;
+          if (shape.isStatic) {
+            bodyDef.type = b2Body.b2_staticBody;
+          } else {
+            bodyDef.type = b2Body.b2_dynamicBody;
+          }
+          bodyDef.position.x = shape.x;
+          bodyDef.position.y = shape.y;
+          bodyDef.userData = shape.id;
+          bodyDef.angle = shape.angle;
+
+          return bodyDef;
         }
       },
-      scale: function(newScale) {
+      get: {
+        /**
+         * @memberof get
+         * @param b
+         * @returns Параметры тела: координаты, угол, центр, id-элемента
+         */
+        bodySpec: function(b) {
+          return {
+            x: b.GetPosition().x,
+            y: b.GetPosition().y,
+            angle: b.GetAngle(),
+            center: {
+              x: b.GetWorldCenter().x,
+              y: b.GetWorldCenter().y
+            },
+            elementId: b.GetUserData()
+          };
+        },
+        /**
+         * @param dynamicOnly
+         *          Флаг поиска только нестатических тел.
+         * @returns Тело, на которое указывает мышь.
+         */
+        bodyAtMouse: function(dynamicOnly) {
+          var getBodyCB = function(fixture) {
+            if (!dynamicOnly || fixture.GetBody().GetType() != b2Body.b2_staticBody) {
+              if (fixture.GetShape().TestPoint(fixture.GetBody().GetTransform(), mousePVec)) {
+                selectedBody = fixture.GetBody();
+                return false;
+              }
+            }
+            return true;
+          }
 
-      }
+          var mousePVec = new b2Vec2(mouse.x, mouse.y);
+          var aabb = new b2AABB();
+          aabb.lowerBound.Set(mouse.x - 0.001, mouse.y - 0.001);
+          aabb.upperBound.Set(mouse.x + 0.001, mouse.y + 0.001);
+          var selectedBody = null;
+          world.QueryAABB(getBodyCB, aabb);
+          return selectedBody;
+        }
 
-    },
-    isValid: {
-      /**
-       * @param val
-       * @returns Допустимость x координаты в мире.
-       */
-      x: function(val) {
-        return val >= 0 && val <= canvas.width / scale;
       },
-      /**
-       * @param val
-       * @returns Допустимость y координаты в мире.
-       */
-      y: function(val) {
-        return val >= 0 && val <= canvas.height / scale;
+      refresh: {
+        /**
+         * Обновляет тип тела для элемента.
+         * 
+         * @param element
+         */
+        bodyType: function(element) {
+          var body = element.body;
+          if (element.isStatic) {
+            body.SetType(b2Body.b2_staticBody)
+          } else {
+            body.SetType(b2Body.b2_dynamicBody);
+          }
+        },
+        scale: function(newScale) {
+
+        }
+
+      },
+      isValid: {
+        /**
+         * @param val
+         * @returns Допустимость x координаты в мире.
+         */
+        x: function(val) {
+          return val >= 0 && val <= canvas.width / scale;
+        },
+        /**
+         * @param val
+         * @returns Допустимость y координаты в мире.
+         */
+        y: function(val) {
+          return val >= 0 && val <= canvas.height / scale;
+        }
       }
     }
-  }
   })();
 
   /**
    * @memberOf editor
    */
   var loop = (function() {
-    var stepRate = 1 / 60;
+    var stepRate = 0;
     var area = document.getElementById("area");
     return {
       /**
@@ -395,7 +429,7 @@ var editor = (function() {
         loop.draw();
         requestAnimFrame(loop.process);
       },
-      step: function() {        
+      step: function() {
         world.Step(stepRate, 10, 10);
         world.ClearForces();
       },
@@ -411,7 +445,9 @@ var editor = (function() {
             mechanism.getElement(id).update(box2d.get.bodySpec(b));
           }
         }
-        dashboard.currentState.value = mechanism.save();
+        if (mechanism.isNew()) {
+          dashboard.currentState.value = mechanism.save();
+        }
       },
       draw: function() {
         if (debug) {
@@ -421,11 +457,11 @@ var editor = (function() {
         }
         mechanism.draw();
       },
-      toggleState: function() {
-        if (stepRate) {
-          stepRate = 0;
+      setSimulate: function(go) {
+        if (go) {
+          stepRate = 1 / 60;
         } else {
-          stepRate = 1/60;
+          stepRate = 0;
         }
       }
     }
@@ -547,7 +583,7 @@ var editor = (function() {
       clockwiseFixed: 1,
       joint: 2
     };
-    var edgeWidth = 0.5;
+    var hasNewElements = false;
     var elements = [], selectedElements = [];
 
     /**
@@ -619,13 +655,20 @@ var editor = (function() {
       this.edges = [];
       // точка перемещается, потеряв связи с другими точками
       this.isFlying = false;
-      this.motor = null;
+      hasNewElements = true;
     };
     Point.prototype = Object.create(Element.prototype);
+    Point.prototype.toString = function() {
+      var edgesStr = this.edges.map(function(edge) {
+        return edge.id
+      }).join();
+      return [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3), this.type, edgesStr].join();
+    }
     Point.prototype.setPosition = function(x, y) {
       this.x = x;
       this.y = y;
       this.body.SetPosition(new b2Vec2(x, y));
+      hasNewElements = true;
     };
     /**
      * Меняет тип точки
@@ -656,6 +699,7 @@ var editor = (function() {
         this.type = type;
         this.isStatic = (type != pointTypes.joint);
         box2d.refresh.bodyType(this);
+        hasNewElements = true;
       }
     };
 
@@ -696,6 +740,7 @@ var editor = (function() {
       for ( var i in edgesCopy) {
         edgesCopy[i].destroy();
       }
+      hasNewElements = true;
     };
     Point.prototype.draw = function() {
       ctx.save();
@@ -749,8 +794,12 @@ var editor = (function() {
       this.p2 = options.p2;
       this.p1.edges.push(this);
       this.p2.edges.push(this);
+      hasNewElements = true;
     };
     Edge.prototype = Object.create(Element.prototype);
+    Edge.prototype.toString = function() {
+      return [this.id, 'e', this.p1.id, this.p2.id].join();
+    }
     Edge.prototype.width = 0.2;
     /**
      * Удаляет себя из концевых точек.
@@ -770,6 +819,7 @@ var editor = (function() {
       var index = elements.indexOf(this);
       elements.splice(index, 1);
       this.removeFromPoints();
+      hasNewElements = true;
     };
     Edge.prototype.draw = function() {
       ctx.save();
@@ -866,34 +916,6 @@ var editor = (function() {
           return p1.edges[i];
       }
     };
-    /**
-     * Показывает данные элемента на панели
-     * 
-     * @memberOf mechanism
-     */
-    var showInfo = function(element) {
-      if (element.isPoint()) {
-        dashboard.elementName.innerHTML = 'Пара';
-        dashboard.edgeLength.style.display = "none";
-        dashboard.edgePoints.style.display = "none";
-        dashboard.pointType.style.display = "block";
-        dashboard.pointX.style.display = "block";
-        dashboard.pointY.style.display = "block";
-        dashboard.pointX.value = element.x.toFixed(3);
-        dashboard.pointY.value = element.y.toFixed(3);
-        dashboard.pointType.selectedIndex = element.type;
-      } else {
-        dashboard.elementName.innerHTML = 'Звено';
-        dashboard.edgeLength.style.display = "block";
-        dashboard.edgePoints.style.display = "block";
-        dashboard.pointType.style.display = "none";
-        dashboard.pointX.style.display = "none";
-        dashboard.pointY.style.display = "none";
-        dashboard.edgeLength.value = element.getLength().toFixed(3);
-        dashboard.edgePoints.value = element.p1.id + '   ' + element.p2.id;
-      }
-      dashboard.elementId.value = element.id;
-    }
 
     var currentBody;
 
@@ -1050,17 +1072,34 @@ var editor = (function() {
        */
       start: function() {
         world.paused = false;
-        loop.toggleState();
+        loop.setSimulate(true);
       },
       /**
-       * Останавливает симуляцию.
+       * Приостанавливает симуляцию.
        */
       pause: function() {
         world.paused = true;
-        loop.toggleState();
-       //for ( var i in elements) {
-       //   elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
-        
+        loop.setSimulate(false);
+      },
+      /**
+       * Останавливает симуляцию, сбрасывает позиции элементов.
+       */
+      stop: function() {
+        world.paused = true;
+        loop.setSimulate(false);
+        for ( var i in elements) {
+          elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
+        }
+        mechanism.load();
+      },
+      /**
+       * @returns Требуется ли обновить текущее состояние.
+       */
+      isNew: function() {
+        if (hasNewElements) {
+          hasNewElements = false;
+          return true;
+        }
       },
       /**
        * Загружает механизм из строки.
@@ -1068,9 +1107,16 @@ var editor = (function() {
       load: function(newState) {
 
       },
+      /**
+       * @returns Механизм в виде строки.
+       */
       save: function() {
-        var json = "";
-        return json;
+        var str = '';
+        for ( var i in elements) {
+          str += elements[i].toString() + '\n';
+        }
+
+        return str;
       }
 
     };
