@@ -470,52 +470,62 @@ var editor = (function() {
   /**
    * @memberOf editor
    */
-  var helpers = {
-    /**
-     * @memberOf helpers
-     * @returns При каждом вызове число на 1 больше, начиная с нуля.
-     */
-    counter: (function() {
-      var currentCount = 0;
-      return function() {
-        return currentCount++;
-      };
-    })(),
-    randomColor: function() {
-      var letters = '0123456789ABCDEF'.split(''), color = '#';
-      for ( var i = 0; i < 6; i++) {
-        color += letters[Math.round(Math.random() * 15)];
-      }
-      return color;
-    },
-    /**
-     * @see http://js-tut.aardon.de/js-tut/tutorial/position.html
-     * @param e
-     * @returns Координаты html-элмента.
-     */
-    getElementPosition: function(e) {
-      var element = e, tagname = "", x = 0, y = 0;
+  var helpers = (function() {
+    var currentCount = 0;
 
-      while ((typeof (element) == "object") && (typeof (element.tagName) != "undefined")) {
-        y += element.offsetTop;
-        x += element.offsetLeft;
-        tagname = element.tagName.toUpperCase();
-
-        if (tagname == "BODY")
-          element = 0;
-
-        if (typeof (element) == "object") {
-          if (typeof (element.offsetParent) == "object")
-            element = element.offsetParent;
+    return {
+      /**
+       * @memberOf helpers
+       * @returns При каждом вызове число на 1 больше, начиная с нуля.
+       */
+      counter: (function() {
+        return function() {
+          return currentCount++;
+        };
+      })(),
+      /**
+       * Устанавливает значение счётчика, выдаемое при следующем вызове
+       * counter().
+       */
+      setCounter: function(val) {
+        currentCount = val;
+      },
+      randomColor: function() {
+        var letters = '0123456789ABCDEF'.split(''), color = '#';
+        for ( var i = 0; i < 6; i++) {
+          color += letters[Math.round(Math.random() * 15)];
         }
-      }
+        return color;
+      },
+      /**
+       * @see http://js-tut.aardon.de/js-tut/tutorial/position.html
+       * @param e
+       * @returns Координаты html-элмента.
+       */
+      getElementPosition: function(e) {
+        var element = e, tagname = "", x = 0, y = 0;
 
-      return {
-        x: x,
-        y: y
-      };
+        while ((typeof (element) == "object") && (typeof (element.tagName) != "undefined")) {
+          y += element.offsetTop;
+          x += element.offsetLeft;
+          tagname = element.tagName.toUpperCase();
+
+          if (tagname == "BODY")
+            element = 0;
+
+          if (typeof (element) == "object") {
+            if (typeof (element.offsetParent) == "object")
+              element = element.offsetParent;
+          }
+        }
+
+        return {
+          x: x,
+          y: y
+        };
+      }
     }
-  };
+  })();
   /**
    * Создает новый Shape. Основа для всех фигур.
    * 
@@ -651,6 +661,7 @@ var editor = (function() {
     var Point = function(options) {
       Element.apply(this, arguments);
       this.type = options.type || pointTypes.joint;
+      this.isStatic = (this.type != pointTypes.joint);
       this.radius = options.radius || 1;
       this.edges = [];
       // точка перемещается, потеряв связи с другими точками
@@ -921,10 +932,8 @@ var editor = (function() {
 
     return {
       /**
-       * @memberOf mechanismReturn
-       */
-      /**
        * Обрабатывает событие mousedown.
+       * @memberOf mechanismReturn
        */
       onDown: function() {
         currentBody = box2d.get.bodyAtMouse();
@@ -1090,7 +1099,7 @@ var editor = (function() {
         for ( var i in elements) {
           elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
         }
-        mechanism.load();
+        mechanism.load(dashboard.currentState.value);
       },
       /**
        * @returns Требуется ли обновить текущее состояние.
@@ -1102,10 +1111,60 @@ var editor = (function() {
         }
       },
       /**
+       * Удаляет все элементы.
+       */
+      clear: function() {
+        var points = getPoints();
+        for ( var i in points) {
+          points[i].destroy();
+        }
+        selectedElements = [];
+      },
+      /**
        * Загружает механизм из строки.
        */
       load: function(newState) {
+        mechanism.clear();
 
+        try {
+          var elementsStr = newState.split('\n');
+          var elementsDefs = [];
+          var lastId = -1;
+          for ( var i in elementsStr) {
+            elementsDefs.push(elementsStr[i].split(','));
+          }
+
+          for ( i in elementsDefs) {
+            if (elementsDefs[i][0] == '') {
+              // пропускаем пустые строки
+              continue
+            }
+            if (lastId < +elementsDefs[i][0]) {
+              lastId = +elementsDefs[i][0];
+            }
+            if (elementsDefs[i][1] == 'p') {
+              // сначала добавляем точки
+              // [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3), this.type,
+              // edgesStr]
+              createPoint({
+                id: +elementsDefs[i][0],
+                x: +elementsDefs[i][2],
+                y: +elementsDefs[i][3],
+                type: +elementsDefs[i][4]
+              })
+            }
+          }
+          for ( i in elementsDefs) {
+            if (elementsDefs[i][1] == 'e') {
+              // добавляем рёбра между точками
+              // [this.id, 'e', this.p1.id, this.p2.id]
+              createEdge(mechanism.getElement(+elementsDefs[i][2]), mechanism.getElement(+elementsDefs[i][3]));
+            }
+          }
+          helpers.setCounter(lastId + 1);
+        } catch (e) {
+          alert('Ошибка при загрузке механизма. ' + e.name);
+        }
       },
       /**
        * @returns Механизм в виде строки.
