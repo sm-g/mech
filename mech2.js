@@ -860,7 +860,7 @@ var editor = (function() {
      */
     var showInfo = function(element) {
       if (element.isPoint()) {
-        dashboard.elementName.innerHTML = 'Точка';
+        dashboard.elementName.innerHTML = 'Пара';
         dashboard.edgeLength.style.display = "none";
         dashboard.edgePoints.style.display = "none";
         dashboard.pointType.style.display = "block";
@@ -870,7 +870,7 @@ var editor = (function() {
         dashboard.pointY.value = element.y;
         dashboard.pointType.selectedIndex = element.type;
       } else {
-        dashboard.elementName.innerHTML = 'Ребро';
+        dashboard.elementName.innerHTML = 'Звено';
         dashboard.edgeLength.style.display = "block";
         dashboard.edgePoints.style.display = "block";
         dashboard.pointType.style.display = "none";
