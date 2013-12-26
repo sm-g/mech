@@ -1122,7 +1122,7 @@ var editor = (function() {
         }
       },
       selectElement: function(id) {
-        var element = getElement(id);
+        var element = mechanism.getElement(id);
         if (element) {
           unselectAll();
           element.select();
