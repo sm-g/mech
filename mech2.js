@@ -986,13 +986,18 @@ var editor = (function() {
        * Обрабатывает событие click.
        */
       onClick: function() {
-        if (world.paused && !currentBody) {
-          // клик по пустому месту - добавляем точку
-          createPoint({
-            x: mouse.x,
-            y: mouse.y
-          });
-          selectedElements = [];
+        if (world.paused && !currentBody) {          
+          if (selectedElements.length < 2) {
+            selectedElements = [];
+            createPoint({
+              x: mouse.x,
+              y: mouse.y
+            }).select();
+            showInfo(selectedElements[0]);        
+        }
+          else {
+            selectedElements = [];
+          }
         }
       },
       /**
