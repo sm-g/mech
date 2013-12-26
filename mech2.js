@@ -304,7 +304,7 @@ var editor = (function() {
          */
         defaultFixture: function() {
           fixDef = new b2FixtureDef;
-          fixDef.density = 1.0; // плотность
+          fixDef.density = 5.0; // плотность
           fixDef.friction = 0; // трение
           fixDef.restitution = 0; // упругость
         },
@@ -653,6 +653,23 @@ var editor = (function() {
       }
       world.CreateJoint(joint);
     };
+    /**
+     * Удаляет все соединения с другими элементами.
+     * 
+     * @returns {Array} Пары тел, которые были соединены
+     */
+    Element.prototype.removeJoints = function() {
+      var bodiesToJoin = [];
+      for ( var j = this.body.GetJointList(); j; j = this.body.GetJointList()) {
+        bodiesToJoin.push({
+          a: getElementOfBody(j.joint.m_bodyA),
+          b: getElementOfBody(j.joint.m_bodyB)
+        });
+
+        world.DestroyJoint(j.joint);
+      }
+      return bodiesToJoin;
+    }
 
     /**
      * @memberOf mechanism
@@ -685,34 +702,17 @@ var editor = (function() {
      */
     Point.prototype.setType = function(type) {
       if (type != this.type) {
-        var bodiesToJoin = [];
         if (type == pointTypes.clockwiseFixed) {
-          // добавляем шарниры          
-          for ( var j = this.body.GetJointList(); j; j = this.body.GetJointList()) {
-            bodiesToJoin.push({
-              a: getElementOfBody(j.joint.m_bodyA),
-              b: getElementOfBody(j.joint.m_bodyB)
-            });
-
-            world.DestroyJoint(j.joint);
-          }
-          for ( var i in bodiesToJoin) {
-            bodiesToJoin[i].a.join(bodiesToJoin[i].b, true);
+          var toJoin = this.removeJoints();
+          for ( var i in toJoin) {
+            toJoin[i].a.join(toJoin[i].b, true);
           }
         } else if (this.type == pointTypes.clockwiseFixed) {
-          // убираем шарниры
-          for ( var j = this.body.GetJointList(); j; j = this.body.GetJointList()) {
-            bodiesToJoin.push({
-              a: getElementOfBody(j.joint.m_bodyA),
-              b: getElementOfBody(j.joint.m_bodyB)
-            });
-            world.DestroyJoint(j.joint);
+          var toJoin = this.removeJoints();
+          this.body.SetAngle(0);
+          for ( var i in toJoin) {
+            toJoin[i].a.join(toJoin[i].b, false);
           }
-            this.body.SetAngle(0);
-            for ( var i in bodiesToJoin) {
-              bodiesToJoin[i].a.join(bodiesToJoin[i].b);
-            }
-          
         }
 
         this.type = type;
