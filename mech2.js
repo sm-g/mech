@@ -26,7 +26,8 @@ var editor = (function() {
     pause: 0,
     stop: 0,
     load: 0,
-    scale: 0
+    scale: 0,
+    labels: 0
   };
   /**
    * Панель редактирований параметров элемента.
@@ -57,7 +58,9 @@ var editor = (function() {
      */
     active: '#fc6e06',
     defaults: '#555',
-    back: '#fff'
+    back: '#fff',
+    labels: '#05f',
+    shadow: 'fff'
   }
   /**
    * Состояние мыши.
@@ -127,6 +130,7 @@ var editor = (function() {
       controls.stop = document.getElementById("stop");
       controls.load = document.getElementById("load");
       controls.scale = document.getElementById("scale");
+      controls.labels = document.getElementById("labels");
       dashboard.pointType = document.getElementById("point-type");
       dashboard.pointX = document.getElementById("point-x");
       dashboard.pointY = document.getElementById("point-y");
@@ -163,6 +167,10 @@ var editor = (function() {
 
       controls.load.addEventListener('click', function(e) {
         mechanism.load(dashboard.currentState.value);
+      }, false);
+
+      controls.labels.addEventListener('click', function(e) {
+        mechanism.setLabels(e.target.checked);
       }, false);
 
       dashboard.elementId.addEventListener('input', function(e) {
@@ -569,7 +577,7 @@ var editor = (function() {
     };
 
   };
-  
+
   /**
    * @memberOf editor
    */
@@ -582,7 +590,7 @@ var editor = (function() {
       clockwiseFixed: 1,
       joint: 2
     };
-    var hasNewElements = false;
+    var hasNewElements = false, drawLabels = false;
     var elements = [], selectedElements = [];
 
     /**
@@ -754,17 +762,20 @@ var editor = (function() {
       hasNewElements = true;
     };
     Point.prototype.draw = function() {
+      var x = this.x * scale;
+      var y = this.y * scale;
+
       ctx.save();
-      ctx.translate(this.x * scale, this.y * scale);
+      ctx.translate(x, y);
       ctx.rotate(this.angle);
-      ctx.translate(-(this.x) * scale, -(this.y) * scale);
+      ctx.translate(-x, -y);
 
       // опорная точка - рисуем треугольник
       if (this.type == pointTypes.fixed || this.type == pointTypes.clockwiseFixed) {
         ctx.strokeStyle = this.getColorBySelection();
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(this.x * scale, this.y * scale);
+        ctx.moveTo(x, y);
         ctx.lineTo((this.x + this.radius) * scale, (this.y + this.radius) * scale);
         ctx.lineTo((this.x - this.radius) * scale, (this.y + this.radius) * scale);
         ctx.closePath();
@@ -774,14 +785,14 @@ var editor = (function() {
       // окружность
       ctx.fillStyle = this.getColorBySelection();
       ctx.beginPath();
-      ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
+      ctx.arc(x, y, this.radius * scale, 0, Math.PI * 2, false);
       ctx.closePath();
       ctx.fill();
 
       // фон
       ctx.fillStyle = colors.back;
       ctx.beginPath();
-      ctx.arc(this.x * scale, this.y * scale, this.radius * scale * 0.5, 0, Math.PI * 2, false);
+      ctx.arc(x, y, this.radius * scale * 0.5, 0, Math.PI * 2, false);
       ctx.closePath();
       ctx.fill();
 
@@ -790,9 +801,16 @@ var editor = (function() {
         ctx.strokeStyle = this.getColorBySelection();
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(this.x * scale, this.y * scale, this.radius * scale + 3, 0, Math.PI * 1.5, false);
+        ctx.arc(x, y, this.radius * scale + 3, 0, Math.PI * 1.5, false);
         ctx.stroke();
       }
+
+      if (drawLabels) {
+        ctx.fillStyle = colors.labels;
+        ctx.font = "10pt Arial";
+        ctx.fillText(this.id, (this.x - this.radius) * scale, (this.y - this.radius) * scale);
+      }
+
       ctx.restore();
     };
 
@@ -833,9 +851,9 @@ var editor = (function() {
       hasNewElements = true;
     };
     Edge.prototype.draw = function() {
+      var x = this.x * scale;
+      var y = this.y * scale;
       ctx.save();
-      ctx.translate(this.x * scale, this.y * scale);
-      ctx.translate(-(this.x) * scale, -(this.y) * scale);
 
       if (this.isSelected()) {
         ctx.strokeStyle = colors.active;
@@ -848,6 +866,17 @@ var editor = (function() {
       ctx.moveTo(this.p1.x * scale, this.p1.y * scale);
       ctx.lineTo(this.p2.x * scale, this.p2.y * scale);
       ctx.stroke();
+      ctx.restore();
+
+      if (drawLabels) {
+        ctx.fillStyle = colors.labels;
+        ctx.font = "10pt Arial";
+        ctx.shadowColor = colors.shadow;
+        ctx.shadowBlur = 3;
+        ctx.fillText(this.id + ': ' + this.getLength().toFixed(3), x, y);
+        ctx.shadowBlur = 0;
+      }
+
       ctx.restore();
     };
 
@@ -1107,6 +1136,12 @@ var editor = (function() {
         for ( var i in getPoints()) {
           getPoints()[i].draw();
         }
+      },
+      /**
+       * Устанавливает показ надписей к элементам.
+       */
+      setLabels: function(value) {
+        drawLabels = value;
       },
       Point: Point,
       Edge: Edge,
