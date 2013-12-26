@@ -867,31 +867,36 @@ var editor = (function() {
      * Создаёт точку с заданными параметрами.
      * 
      * @memberOf mechanism
+     * @returns Новая точка
      */
     var createPoint = function(options) {
       options.radius = 1;
       var point = new Point(options);
       var body = box2d.addToWorld(point);
       point.body = body;
+      return point;
     };
     /**
      * Создает ребро между двумя точками.
      * 
      * @memberOf mechanism
+     * @returns Новое ребро между точками (если создано)
      */
-    var createEdge = function(p1, p2) {
+    var createEdge = function(p1, p2, id) {
       if (getEdgeBetweenPoints(p1, p2) || p1 == p2)
         return;
 
       var edge = new Edge({
         p1: p1,
-        p2: p2
+        p2: p2,
+        id: id || 0
       });
       var body = box2d.addToWorld(edge);
       edge.body = body;
 
       edge.join(p1, p1.type == pointTypes.clockwiseFixed);
       edge.join(p2, p2.type == pointTypes.clockwiseFixed);
+      return edge;
     };
     /**
      * Соединяет все точки рёбрами.
@@ -1149,16 +1154,15 @@ var editor = (function() {
               createPoint({
                 id: +elementsDefs[i][0],
                 x: +elementsDefs[i][2],
-                y: +elementsDefs[i][3],
-                type: +elementsDefs[i][4]
-              })
+                y: +elementsDefs[i][3]
+              }).setType(elementsDefs[i][4]);
             }
           }
           for ( i in elementsDefs) {
             if (elementsDefs[i][1] == 'e') {
               // добавляем рёбра между точками
               // [this.id, 'e', this.p1.id, this.p2.id]
-              createEdge(mechanism.getElement(+elementsDefs[i][2]), mechanism.getElement(+elementsDefs[i][3]));
+              createEdge(mechanism.getElement(+elementsDefs[i][2]), mechanism.getElement(+elementsDefs[i][3]), +elementsDefs[i][0]);
             }
           }
           helpers.setCounter(lastId + 1);
