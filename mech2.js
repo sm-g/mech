@@ -208,13 +208,16 @@ var editor = (function() {
 
       var keyCodes = {
         DEL: 46,
-        SHIFT: 16
+        A: 65
       }
 
       document.onkeyup = function key(e) {
         switch (e.keyCode) {
           case keyCodes.DEL:
             mechanism.onDelete();
+            break;
+          case keyCodes.A:
+            mechanism.onAKeyUp();
             break;
         }
       }
@@ -480,7 +483,6 @@ var editor = (function() {
    */
   var helpers = (function() {
     var currentCount = 1;
-
     return {
       /**
        * @memberOf helpers
@@ -859,7 +861,7 @@ var editor = (function() {
         ctx.strokeStyle = colors.defaults;
       }
 
-      ctx.lineWidth = scale / 5 | 0; // целая часть
+      ctx.lineWidth = scale / 2 | 0; // целая часть
       ctx.beginPath();
       ctx.moveTo(this.p1.x * scale, this.p1.y * scale);
       ctx.lineTo(this.p2.x * scale, this.p2.y * scale);
@@ -867,15 +869,27 @@ var editor = (function() {
       ctx.restore();
     };
 
+    /**
+     * @memberOf mechanism
+     */
     var isPoint = function(element) {
       return element instanceof Point;
     }
+    /**
+     * @memberOf mechanism
+     */
     var isEdge = function(element) {
       return element instanceof Edge;
     }
+    /**
+     * @memberOf mechanism
+     */
     var getPoints = function() {
       return elements.filter(isPoint);
     }
+    /**
+     * @memberOf mechanism
+     */
     var getEdges = function() {
       return elements.filter(isEdge);
     }
@@ -915,18 +929,16 @@ var editor = (function() {
       return edge;
     };
     /**
-     * Соединяет все точки рёбрами.
+     * Соединяет точки рёбрами в контур.
      * 
      * @memberOf mechanism
      */
     var connectPoints = function(points) {
-      for ( var i in points) {
-        for ( var j in points) {
-          if (j > i) {
-            createEdge(points[i], points[j]);
-          }
-        }
-      }
+      points.reduce(function(prevP, curP) {
+        createEdge(prevP, curP);
+        return curP;
+      });
+      createEdge(points[0], points[points.length - 1]);
     }
     /**
      * @memberOf mechanism
@@ -982,6 +994,7 @@ var editor = (function() {
 
               element.select();
 
+              // соединяем две выделенные точки
               if (selectedElements.length == 2 && selectedElements[0].isPoint() && selectedElements[1].isPoint()) {
                 connectPoints(selectedElements);
               }
@@ -1062,6 +1075,11 @@ var editor = (function() {
           }
           selectedElements = [];
           showInfo();
+        }
+      },
+      onAKeyUp: function() {
+        if (world.paused) {
+          connectPoints(selectedElements.filter(isPoint));
         }
       },
       /**
@@ -1178,7 +1196,7 @@ var editor = (function() {
           for (i in elementsDefs) {
             if (elementsDefs[i][0] == '') {
               // пропускаем пустые строки
-              continue
+              continue;
             }
             if (lastId < +elementsDefs[i][0]) {
               lastId = +elementsDefs[i][0];
@@ -1221,6 +1239,6 @@ var editor = (function() {
 
     };
   })();
-
+  
   init.start();
 })();
