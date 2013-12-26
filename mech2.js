@@ -245,7 +245,7 @@ var editor = (function() {
       addToWorld: function(shape) {
         var bodyDef = this.create.bodyDef(shape);
 
-        if (shape instanceof Circle || shape instanceof mechanism.Point) {
+        if (shape instanceof mechanism.Point) {
           fixDef.shape = new b2CircleShape(shape.radius);
         } else if (shape instanceof mechanism.Edge) {
           fixDef.shape = new b2PolygonShape;
@@ -569,31 +569,7 @@ var editor = (function() {
     };
 
   };
-  /**
-   * Создаёт новый Circle.
-   * 
-   * @memberOf editor
-   * @constructor
-   */
-  var Circle = function(options) {
-    Shape.call(this, options);
-    this.radius = options.radius || 1;
-
-    this.draw = function() {
-      ctx.save();
-      ctx.translate(this.x * scale, this.y * scale);
-      ctx.rotate(this.angle);
-      ctx.translate(-(this.x) * scale, -(this.y) * scale);
-
-      ctx.fillStyle = this.color;
-      ctx.beginPath();
-      ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    };
-  };
-  Circle.prototype = Object.create(Shape.prototype);
+  
   /**
    * @memberOf editor
    */
@@ -977,10 +953,11 @@ var editor = (function() {
       if (element) {
         selectedElements.push(element);
       }
-    }
-
+    };
     /**
      * Убирает выделение со всех элементов.
+     * 
+     * @memberOf mechanism
      */
     var unselectAll = function() {
       selectedElements = [];
