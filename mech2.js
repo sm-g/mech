@@ -30,7 +30,7 @@ var editor = (function() {
     labels: 0
   };
   /**
-   * Панель редактирований параметров элемента.
+   * Панель редактирования параметров элемента.
    * 
    * @memberOf editor
    */
@@ -393,7 +393,13 @@ var editor = (function() {
           var selectedBody = null;
           world.QueryAABB(getBodyCB, aabb);
           return selectedBody;
-        }
+        },
+        motorSpeed: function() {
+          return 2000;
+        },
+        maxMotorTorque: function() {
+          return 2000;
+        },
 
       },
       refresh: {
@@ -642,8 +648,8 @@ var editor = (function() {
     Element.prototype.join = function(element, makeMotor) {
       var joint = new b2RevoluteJointDef();
       if (makeMotor) {
-        joint.maxMotorTorque = 2000;
-        joint.motorSpeed = 2000;
+        joint.maxMotorTorque = box2d.get.maxMotorTorque();
+        joint.motorSpeed = box2d.get.motorSpeed();
         joint.enableMotor = true;
       }
       if (this.isEdge()) {
@@ -840,7 +846,7 @@ var editor = (function() {
       this.p2.edges.splice(index, 1);
     };
     Edge.prototype.getLength = function() {
-      var pp = new paper.Point(this.p1.x + this.p2.x, this.p1.y + this.p2.y);
+      var pp = new paper.Point(this.p1.x - this.p2.x, this.p1.y - this.p2.y);
       return pp.length;
     };
     Edge.prototype.destroy = function() {
