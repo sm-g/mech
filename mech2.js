@@ -13,7 +13,7 @@ var editor = (function() {
   })();
 
   // режим отладки
-  var debug = true;
+  var debug = false;
 
   var scale, canvas, ctx, world;
   /**
@@ -163,6 +163,10 @@ var editor = (function() {
 
       controls.load.addEventListener('click', function(e) {
         mechanism.load(dashboard.currentState.value);
+      }, false);
+
+      dashboard.elementId.addEventListener('input', function(e) {
+        mechanism.selectElement(+e.target.value);
       }, false);
 
       dashboard.pointX.addEventListener('input', function(e) {
@@ -630,11 +634,13 @@ var editor = (function() {
     Element.prototype.select = function() {
       if (selectedElements.indexOf(this) == -1) {
         selectedElements.push(this);
+        showInfo(this);
       }
     };
     Element.prototype.unselect = function() {
       var index = selectedElements.indexOf(this);
       selectedElements.splice(index, 1);
+      showLastSelectedInfo();
     };
     Element.prototype.isSelected = function() {
       return selectedElements.indexOf(this) != -1;
@@ -969,9 +975,17 @@ var editor = (function() {
       var element = selectedElements.pop();
       showInfo(element);
       if (element) {
-        selectedElements.push(element);        
+        selectedElements.push(element);
       }
     }
+
+    /**
+     * Убирает выделение со всех элементов.
+     */
+    var unselectAll = function() {
+      selectedElements = [];
+      showInfo();
+    };
 
     var currentBody;
 
@@ -985,23 +999,19 @@ var editor = (function() {
         currentBody = box2d.get.bodyAtMouse();
         if (world.paused && currentBody) {
           var element = getElementOfBody(currentBody);
-          if (element) {
-            if (!element.isSelected()) {
-              if (!mouse.isCtrl) {
-                // убираем выделение со всех элементов
-                selectedElements = [];
-              }
-
-              element.select();
-
-              // соединяем две выделенные точки
-              if (selectedElements.length == 2 && selectedElements[0].isPoint() && selectedElements[1].isPoint()) {
-                connectPoints(selectedElements);
-              }
-
-              element.isActive = true;
+          if (element && !element.isSelected()) {
+            if (!mouse.isCtrl) {
+              unselectAll();
             }
-            showInfo(element);
+
+            element.select();
+
+            // соединяем две выделенные точки
+            if (selectedElements.length == 2 && selectedElements[0].isPoint() && selectedElements[1].isPoint()) {
+              connectPoints(selectedElements);
+            }
+
+            element.isActive = true;
           }
         }
       },
@@ -1011,11 +1021,10 @@ var editor = (function() {
       onUp: function() {
         if (world.paused && currentBody) {
           var element = getElementOfBody(currentBody);
-          if (element.isPoint()) {
+          if (element && element.isPoint()) {
             if (element.isSelected() && !element.isActive) {
               // снимаем выделение
               element.unselect();
-              showLastSelectedInfo();
             }
             element.isActive = false;
             if (element.isFlying) {
@@ -1031,15 +1040,14 @@ var editor = (function() {
       onClick: function() {
         if (world.paused && !currentBody) {
           if (selectedElements.length < 2) {
-            selectedElements = [];
+            unselectAll();
             createPoint({
               x: mouse.x,
               y: mouse.y
             }).select();
-            showInfo(selectedElements[0]);
           } else {
-            // просто снимаем выделение, если было выделено больше 1 элемента
-            selectedElements = [];
+            // просто снимаем выделение, если было выделено более 1 элемента
+            unselectAll();
           }
         }
       },
@@ -1073,8 +1081,7 @@ var editor = (function() {
           for ( var i in selectedElements) {
             selectedElements[i].destroy();
           }
-          selectedElements = [];
-          showInfo();
+          unselectAll();
         }
       },
       onAKeyUp: function() {
@@ -1105,7 +1112,9 @@ var editor = (function() {
                 newY = value;
               }
 
+              element.beginFlying();
               element.setPosition(newX, newY);
+              element.endFlying();
             }
           }
         }
@@ -1133,6 +1142,13 @@ var editor = (function() {
           if (elements[i].id == id) {
             return elements[i];
           }
+        }
+      },
+      selectElement: function(id) {
+        var element = getElement(id);
+        if (element) {
+          unselectAll();
+          element.select();
         }
       },
       /**
@@ -1173,11 +1189,11 @@ var editor = (function() {
        * Удаляет все элементы.
        */
       clear: function() {
+        unselectAll();
         var points = getPoints();
         for ( var i in points) {
           points[i].destroy();
         }
-        selectedElements = [];
       },
       /**
        * Загружает механизм из строки.
@@ -1239,6 +1255,6 @@ var editor = (function() {
 
     };
   })();
-  
+
   init.start();
 })();
