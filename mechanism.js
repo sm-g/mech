@@ -1164,8 +1164,8 @@ var editor = (function() {
       },
       selectElement: function(id) {
         var element = mechanism.getElement(id);
+        unselectAll();
         if (element) {
-          unselectAll();
           element.select();
         }
       },
