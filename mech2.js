@@ -77,9 +77,17 @@ var editor = (function() {
   /**
    * Показывает данные элемента на панели
    * 
-   * @memberOf mechanism
+   * @memberOf editor
    */
   var showInfo = function(element) {
+    if (!element) {
+      dashboard.elementId.value = '';
+      dashboard.pointX.value = '';
+      dashboard.pointY.value = '';
+      dashboard.edgeLength.value = '';
+      dashboard.edgePoints.value = '';
+      return;
+    }
     if (element instanceof mechanism.Point) {
       dashboard.elementName.innerHTML = 'Пара';
       dashboard.edgeLength.style.display = "none";
@@ -940,6 +948,18 @@ var editor = (function() {
           return p1.edges[i];
       }
     };
+    /**
+     * Показывает данные для последнего элемента в списке выделенных.
+     * 
+     * @memberOf mechanism
+     */
+    var showLastSelectedInfo = function() {
+      var element = selectedElements.pop();
+      showInfo(element);
+      if (element) {
+        selectedElements.push(element);        
+      }
+    }
 
     var currentBody;
 
@@ -982,6 +1002,7 @@ var editor = (function() {
             if (element.isSelected() && !element.isActive) {
               // снимаем выделение
               element.unselect();
+              showLastSelectedInfo();
             }
             element.isActive = false;
             if (element.isFlying) {
@@ -1002,9 +1023,9 @@ var editor = (function() {
               x: mouse.x,
               y: mouse.y
             }).select();
-            showInfo(selectedElements[0]);        
-        }
-          else {
+            showInfo(selectedElements[0]);
+          } else {
+            // просто снимаем выделение, если было выделено больше 1 элемента
             selectedElements = [];
           }
         }
@@ -1040,6 +1061,7 @@ var editor = (function() {
             selectedElements[i].destroy();
           }
           selectedElements = [];
+          showInfo();
         }
       },
       /**
