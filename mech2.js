@@ -471,12 +471,12 @@ var editor = (function() {
    * @memberOf editor
    */
   var helpers = (function() {
-    var currentCount = 0;
+    var currentCount = 1;
 
     return {
       /**
        * @memberOf helpers
-       * @returns При каждом вызове число на 1 больше, начиная с нуля.
+       * @returns При каждом вызове число на 1 больше, начиная с 1.
        */
       counter: (function() {
         return function() {
@@ -499,7 +499,6 @@ var editor = (function() {
       },
       /**
        * @see http://js-tut.aardon.de/js-tut/tutorial/position.html
-       * @param e
        * @returns Координаты html-элмента.
        */
       getElementPosition: function(e) {
@@ -686,25 +685,34 @@ var editor = (function() {
      */
     Point.prototype.setType = function(type) {
       if (type != this.type) {
+        var bodiesToJoin = [];
         if (type == pointTypes.clockwiseFixed) {
-          // добавляем шарниры
-          for ( var j = this.body.GetJointList(); j; j = j.next) {
-            var a = getElementOfBody(j.joint.m_bodyA);
-            var b = getElementOfBody(j.joint.m_bodyB);
-            world.DestroyJoint(j.joint);
+          // добавляем шарниры          
+          for ( var j = this.body.GetJointList(); j; j = this.body.GetJointList()) {
+            bodiesToJoin.push({
+              a: getElementOfBody(j.joint.m_bodyA),
+              b: getElementOfBody(j.joint.m_bodyB)
+            });
 
-            a.join(b, true);
+            world.DestroyJoint(j.joint);
+          }
+          for ( var i in bodiesToJoin) {
+            bodiesToJoin[i].a.join(bodiesToJoin[i].b, true);
           }
         } else if (this.type == pointTypes.clockwiseFixed) {
           // убираем шарниры
-          for ( var j = this.body.GetJointList(); j; j = j.next) {
-            var a = getElementOfBody(j.joint.m_bodyA);
-            var b = getElementOfBody(j.joint.m_bodyB);
+          for ( var j = this.body.GetJointList(); j; j = this.body.GetJointList()) {
+            bodiesToJoin.push({
+              a: getElementOfBody(j.joint.m_bodyA),
+              b: getElementOfBody(j.joint.m_bodyB)
+            });
             world.DestroyJoint(j.joint);
-
-            this.body.SetAngle(0);
-            a.join(b);
           }
+            this.body.SetAngle(0);
+            for ( var i in bodiesToJoin) {
+              bodiesToJoin[i].a.join(bodiesToJoin[i].b);
+            }
+          
         }
 
         this.type = type;
@@ -938,6 +946,7 @@ var editor = (function() {
     return {
       /**
        * Обрабатывает событие mousedown.
+       * 
        * @memberOf mechanismReturn
        */
       onDown: function() {
@@ -986,7 +995,7 @@ var editor = (function() {
        * Обрабатывает событие click.
        */
       onClick: function() {
-        if (world.paused && !currentBody) {          
+        if (world.paused && !currentBody) {
           if (selectedElements.length < 2) {
             selectedElements = [];
             createPoint({
@@ -1144,7 +1153,7 @@ var editor = (function() {
             elementsDefs.push(elementsStr[i].split(','));
           }
 
-          for ( i in elementsDefs) {
+          for (i in elementsDefs) {
             if (elementsDefs[i][0] == '') {
               // пропускаем пустые строки
               continue
@@ -1163,11 +1172,12 @@ var editor = (function() {
               }).setType(elementsDefs[i][4]);
             }
           }
-          for ( i in elementsDefs) {
+          for (i in elementsDefs) {
             if (elementsDefs[i][1] == 'e') {
               // добавляем рёбра между точками
               // [this.id, 'e', this.p1.id, this.p2.id]
-              createEdge(mechanism.getElement(+elementsDefs[i][2]), mechanism.getElement(+elementsDefs[i][3]), +elementsDefs[i][0]);
+              createEdge(mechanism.getElement(+elementsDefs[i][2]), mechanism.getElement(+elementsDefs[i][3]),
+                  +elementsDefs[i][0]);
             }
           }
           helpers.setCounter(lastId + 1);
