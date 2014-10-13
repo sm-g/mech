@@ -446,8 +446,8 @@ var mechanism = (function() {
      * @return element to show info
      * @memberOf mechanismReturn
      */
-    onDown : function() {
-      currentBody = box2d.get.bodyAtMouse();
+    onDown : function(mouse) {
+      currentBody = box2d.get.bodyAtMouse(mouse);
       if (box2d.get.world().paused && currentBody) {
         var element = getElementOfBody(currentBody);
         if (element && !element.isSelected()) {
@@ -472,7 +472,7 @@ var mechanism = (function() {
      * 
      * @return element to show info
      */
-    onUp : function() {
+    onUp : function(mouse) {
       if (box2d.get.world().paused && currentBody) {
         var point = getElementOfBody(currentBody);
         if (point && point.isPoint()) {
@@ -497,7 +497,7 @@ var mechanism = (function() {
      * 
      * @return newPoint or null
      */
-    onClick : function() {
+    onClick : function(mouse) {
       if (box2d.get.world().paused && !currentBody) {
         if (selectedElements.length < 2) {
           unselectAll();
@@ -517,7 +517,7 @@ var mechanism = (function() {
     /**
      * Обрабатывает событие mousemove.
      */
-    onMove : function() {
+    onMove : function(mouse) {
       if (box2d.get.world().paused && mouse.isDown) {
         if (currentBody) {
           var element = getElementOfBody(currentBody);

@@ -198,28 +198,28 @@ var editor = (function() {
       }, false);
       
       canvas.addEventListener('click', function(e) {
-        var newPoint = mechanism.onClick();
+        var newPoint = mechanism.onClick(mouse);
         showInfo(newPoint);
       }, false);
       
       canvas.addEventListener('mousemove', function(e) {
         mouse.x = (e.clientX - canvasPosition.x) / scale;
         mouse.y = (e.clientY - canvasPosition.y) / scale;
-        var element = mechanism.onMove();
+        var element = mechanism.onMove(mouse);
         showInfo(element);
       }, false);
       
       canvas.addEventListener('mousedown', function(e) {
         mouse.isDown = true;
         mouse.isCtrl = e.ctrlKey;
-        var element = mechanism.onDown();
+        var element = mechanism.onDown(mouse);
         showInfo(element);
       }, false);
       
       canvas.addEventListener('mouseup', function(e) {
         mouse.isDown = false;
         mouse.isCtrl = false;
-        var element = mechanism.onUp();
+        var element = mechanism.onUp(mouse);
         showInfo(element);
       }, false);
       

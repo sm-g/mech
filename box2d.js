@@ -147,7 +147,7 @@ var box2d = (function() {
        *          Флаг поиска только нестатических тел.
        * @returns Тело, на которое указывает мышь.
        */
-      bodyAtMouse : function(dynamicOnly) {
+      bodyAtMouse : function(mouse, dynamicOnly) {
         var getBodyCB = function(fixture) {
           if (!dynamicOnly
               || fixture.GetBody().GetType() != b2Body.b2_staticBody) {
