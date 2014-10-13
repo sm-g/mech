@@ -141,6 +141,7 @@ var editor = (function() {
       dashboard.currentState = document.getElementById("current-state");
       
       ctx = canvas.getContext("2d");
+      mechanism.setContext(ctx);
       scale = controls.scale.value || 20;
       
       box2d.create.world();
@@ -198,28 +199,28 @@ var editor = (function() {
       }, false);
       
       canvas.addEventListener('click', function(e) {
-        var newPoint = mechanism.onClick(mouse);
+        var newPoint = mechanism.handlers.onClick(mouse);
         showInfo(newPoint);
       }, false);
       
       canvas.addEventListener('mousemove', function(e) {
         mouse.x = (e.clientX - canvasPosition.x) / scale;
         mouse.y = (e.clientY - canvasPosition.y) / scale;
-        var element = mechanism.onMove(mouse);
+        var element = mechanism.handlers.onMove(mouse);
         showInfo(element);
       }, false);
       
       canvas.addEventListener('mousedown', function(e) {
         mouse.isDown = true;
         mouse.isCtrl = e.ctrlKey;
-        var element = mechanism.onDown(mouse);
+        var element = mechanism.handlers.onDown(mouse);
         showInfo(element);
       }, false);
       
       canvas.addEventListener('mouseup', function(e) {
         mouse.isDown = false;
         mouse.isCtrl = false;
-        var element = mechanism.onUp(mouse);
+        var element = mechanism.handlers.onUp(mouse);
         showInfo(element);
       }, false);
       
@@ -231,10 +232,10 @@ var editor = (function() {
       document.onkeyup = function key(e) {
         switch (e.keyCode) {
           case keyCodes.DEL:
-            mechanism.onDelete();
+            mechanism.handlers.onDelete();
             break;
           case keyCodes.A:
-            mechanism.onAKeyUp();
+            mechanism.handlers.onAKeyUp();
             break;
         }
       };

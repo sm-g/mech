@@ -6,6 +6,8 @@
  */
 var mechanism = (function() {
   var b2Vec2 = Box2D.Common.Math.b2Vec2, b2AABB = Box2D.Collision.b2AABB, b2BodyDef = Box2D.Dynamics.b2BodyDef, b2Body = Box2D.Dynamics.b2Body, b2FixtureDef = Box2D.Dynamics.b2FixtureDef, b2World = Box2D.Dynamics.b2World, b2ContactFilter = Box2D.Dynamics.b2ContactFilter, b2MassData = Box2D.Collision.Shapes.b2MassData, b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape, b2CircleShape = Box2D.Collision.Shapes.b2CircleShape, b2DebugDraw = Box2D.Dynamics.b2DebugDraw, b2MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef, b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
+  var ctx;
+  
   /**
    * @memberOf mechanism
    */
@@ -446,110 +448,118 @@ var mechanism = (function() {
      * @return element to show info
      * @memberOf mechanismReturn
      */
-    onDown : function(mouse) {
-      currentBody = box2d.get.bodyAtMouse(mouse);
-      if (box2d.get.world().paused && currentBody) {
-        var element = getElementOfBody(currentBody);
-        if (element && !element.isSelected()) {
-          if (!mouse.isCtrl) {
-            unselectAll();
-          }
-          
-          element.select();
-          // соединяем две выделенные точки
-          if (selectedElements.length == 2 && selectedElements[0].isPoint()
-              && selectedElements[1].isPoint()) {
-            connectPoints(selectedElements);
-          }
-          
-          element.isActive = true;
-        }
-        return element;
-      }
-    },
-    /**
-     * Обрабатывает событие mouseup.
-     * 
-     * @return element to show info
-     */
-    onUp : function(mouse) {
-      if (box2d.get.world().paused && currentBody) {
-        var point = getElementOfBody(currentBody);
-        if (point && point.isPoint()) {
-          if (point.isSelected() && !point.isActive) {
-            // снимаем выделение
-            point.unselect();
-            // show last sel
-            return selectedElements[selectedElements.length - 1];
-          } else {
-            point.isActive = false;
-            if (point.isFlying) {
-              // восстанавливаем ребра
-              point.endFlying();
-            }
-            return point;
-          }
-        }
-      }
-    },
-    /**
-     * Обрабатывает событие click.
-     * 
-     * @return newPoint or null
-     */
-    onClick : function(mouse) {
-      if (box2d.get.world().paused && !currentBody) {
-        if (selectedElements.length < 2) {
-          unselectAll();
-          var newPoint = createPoint({
-            x : mouse.x,
-            y : mouse.y
-          })
-          newPoint.select();
-          return newPoint;
-        } else {
-          // просто снимаем выделение, если было выделено более 1
-          // элемента
-          unselectAll();
-        }
-      }
-    },
-    /**
-     * Обрабатывает событие mousemove.
-     */
-    onMove : function(mouse) {
-      if (box2d.get.world().paused && mouse.isDown) {
-        if (currentBody) {
+    handlers : {
+      /**
+       * Обрабатывает событие mousedown.
+       * 
+       * @return element to show info
+       * @memberOf handlers
+       */
+      onDown : function(mouse) {
+        currentBody = box2d.get.bodyAtMouse(mouse);
+        if (box2d.get.world().paused && currentBody) {
           var element = getElementOfBody(currentBody);
-          if (element.isPoint()) {
-            if (!mouse.isCtrl && !element.isFlying) {
-              // убираем рёбра
-              element.beginFlying();
+          if (element && !element.isSelected()) {
+            if (!mouse.isCtrl) {
+              unselectAll();
             }
             
-            // двигаем точку
-            element.setPosition(mouse.x, mouse.y);
+            element.select();
+            // соединяем две выделенные точки
+            if (selectedElements.length == 2 && selectedElements[0].isPoint()
+                && selectedElements[1].isPoint()) {
+              connectPoints(selectedElements);
+            }
+            
+            element.isActive = true;
           }
-          element.isActive = true;
           return element;
         }
-      }
-    },
-    /**
-     * Обрабатывает нажатие delete.
-     */
-    onDelete : function() {
-      if (box2d.get.world().paused && selectedElements[0]) {
-        // удаляем все выбранные элементы
-        for ( var i in selectedElements) {
-          selectedElements[i].destroy();
+      },
+      /**
+       * Обрабатывает событие mouseup.
+       * 
+       * @return element to show info
+       */
+      onUp : function(mouse) {
+        if (box2d.get.world().paused && currentBody) {
+          var point = getElementOfBody(currentBody);
+          if (point && point.isPoint()) {
+            if (point.isSelected() && !point.isActive) {
+              // снимаем выделение
+              point.unselect();
+              // show last sel
+              return selectedElements[selectedElements.length - 1];
+            } else {
+              point.isActive = false;
+              if (point.isFlying) {
+                // восстанавливаем ребра
+                point.endFlying();
+              }
+              return point;
+            }
+          }
         }
-        unselectAll();
-      }
-    },
-    onAKeyUp : function() {
-      if (box2d.get.world().paused) {
-        mechanism.connectPoints(selectedElements.filter(isPoint));
+      },
+      /**
+       * Обрабатывает событие click.
+       * 
+       * @return newPoint or null
+       */
+      onClick : function(mouse) {
+        if (box2d.get.world().paused && !currentBody) {
+          if (selectedElements.length < 2) {
+            unselectAll();
+            var newPoint = createPoint({
+              x : mouse.x,
+              y : mouse.y
+            })
+            newPoint.select();
+            return newPoint;
+          } else {
+            // просто снимаем выделение, если было выделено более 1
+            // элемента
+            unselectAll();
+          }
+        }
+      },
+      /**
+       * Обрабатывает событие mousemove.
+       */
+      onMove : function(mouse) {
+        if (box2d.get.world().paused && mouse.isDown) {
+          if (currentBody) {
+            var element = getElementOfBody(currentBody);
+            if (element.isPoint()) {
+              if (!mouse.isCtrl && !element.isFlying) {
+                // убираем рёбра
+                element.beginFlying();
+              }
+              
+              // двигаем точку
+              element.setPosition(mouse.x, mouse.y);
+            }
+            element.isActive = true;
+            return element;
+          }
+        }
+      },
+      /**
+       * Обрабатывает нажатие delete.
+       */
+      onDelete : function() {
+        if (box2d.get.world().paused && selectedElements[0]) {
+          // удаляем все выбранные элементы
+          for ( var i in selectedElements) {
+            selectedElements[i].destroy();
+          }
+          unselectAll();
+        }
+      },
+      onAKeyUp : function() {
+        if (box2d.get.world().paused) {
+          mechanism.connectPoints(selectedElements.filter(isPoint));
+        }
       }
     },
     /**
@@ -559,6 +569,7 @@ var mechanism = (function() {
      *          Какой параметр менять.
      * @param value
      *          Значение параметра.
+     * @memberOf mechanismReturn
      */
     setPoint : function(what, value) {
       var element = selectedElements.pop();
@@ -599,6 +610,12 @@ var mechanism = (function() {
      */
     setLabels : function(value) {
       drawLabels = value;
+    },
+    /**
+     * Устанавливает контекст рисования.
+     */
+    setContext : function(context) {
+      ctx = context;
     },
     Point : Point,
     Edge : Edge,
