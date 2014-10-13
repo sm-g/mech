@@ -124,10 +124,12 @@ var editor = (function() {
       dashboard.currentState = document.getElementById("current-state");
       
       ctx = canvas.getContext("2d");
-      mechanism.setContext(ctx);
       scale = controls.scale.value || 20;
       
-      box2d.create.world();
+      mechanism.set.context(ctx);
+      mechanism.set.scale(scale);
+      
+      box2d.create.world(ctx);
       box2d.create.defaultFixture();
       
       this.callbacks();
@@ -162,7 +164,7 @@ var editor = (function() {
       }, false);
       
       controls.labels.addEventListener('click', function(e) {
-        mechanism.setLabels(e.target.checked);
+        mechanism.set.labels(e.target.checked);
       }, false);
       
       dashboard.elementId.addEventListener('input', function(e) {
@@ -171,21 +173,23 @@ var editor = (function() {
       }, false);
       
       dashboard.pointX.addEventListener('input', function(e) {
-        mechanism.setPoint('x', +e.target.value);
+        mechanism.set.point('x', +e.target.value);
       }, false);
       
       dashboard.pointY.addEventListener('input', function(e) {
-        mechanism.setPoint('y', +e.target.value);
+        mechanism.set.point('y', +e.target.value);
       }, false);
       
       dashboard.pointType.addEventListener('change', function(e) {
-        mechanism.setPoint('type', e.target.selectedIndex);
+        mechanism.set.point('type', e.target.selectedIndex);
       }, false);
       
       controls.scale.addEventListener('change', function(e) {
         var val = +e.target.value;
         if (val > 0 && val < 50) {
           scale = val;
+          box2d.set.scale(val);
+          mechanism.set.scale(val);
         }
       }, false);
       

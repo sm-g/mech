@@ -4,7 +4,7 @@
 var b2Vec2 = Box2D.Common.Math.b2Vec2, b2AABB = Box2D.Collision.b2AABB, b2BodyDef = Box2D.Dynamics.b2BodyDef, b2Body = Box2D.Dynamics.b2Body, b2FixtureDef = Box2D.Dynamics.b2FixtureDef, b2World = Box2D.Dynamics.b2World, b2ContactFilter = Box2D.Dynamics.b2ContactFilter, b2MassData = Box2D.Collision.Shapes.b2MassData, b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape, b2CircleShape = Box2D.Collision.Shapes.b2CircleShape, b2DebugDraw = Box2D.Dynamics.b2DebugDraw, b2MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef, b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
 
 var box2d = (function() {
-  var fixDef, world;
+  var fixDef, world, scale, ctx;
   
   return {
     /**
@@ -49,7 +49,7 @@ var box2d = (function() {
        * 
        * @memberOf create
        */
-      world : function() {
+      world : function(ctx, scale) {
         world = new b2World(new b2Vec2(0, 0), false);
         world.paused = true;
         var filter = new b2ContactFilter();
@@ -84,7 +84,7 @@ var box2d = (function() {
         if (debug) {
           var debugDraw = new b2DebugDraw();
           debugDraw.SetSprite(ctx);
-          debugDraw.SetDrawScale(scale);
+          debugDraw.SetDrawScale(scale || 1);
           debugDraw.SetFillAlpha(0.5);
           debugDraw.SetLineThickness(1.0);
           debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
@@ -192,8 +192,15 @@ var box2d = (function() {
           body.SetType(b2Body.b2_dynamicBody);
         }
       },
+    
+    },
+    set : {
+      /**
+       * 
+       * @memberOf set
+       */
       scale : function(newScale) {
-        
+        scale = newScale;
       }
     },
     isValid : {

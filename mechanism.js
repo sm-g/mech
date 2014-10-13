@@ -5,7 +5,10 @@
  * @module mechanism
  */
 var mechanism = (function() {
-  var ctx;
+  var ctx, scale;
+  var hasNewElements = false, drawLabels = false;
+  var elements = [], selectedElements = [];
+  var currentBody;
   
   /**
    * @memberOf mechanism
@@ -15,9 +18,6 @@ var mechanism = (function() {
     clockwiseFixed : 1,
     joint : 2
   };
-  var hasNewElements = false, drawLabels = false;
-  var elements = [], selectedElements = [];
-  var currentBody;
   
   /**
    * Цветовая схема.
@@ -246,9 +246,11 @@ var mechanism = (function() {
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.lineTo((this.x + this.radius) * scale, (this.y + this.radius)
+      ctx
+          .lineTo((this.x + this.radius) * scale, (this.y + this.radius)
               * scale);
-      ctx.lineTo((this.x - this.radius) * scale, (this.y + this.radius)
+      ctx
+          .lineTo((this.x - this.radius) * scale, (this.y + this.radius)
               * scale);
       ctx.closePath();
       ctx.stroke();
@@ -572,61 +574,73 @@ var mechanism = (function() {
         }
       }
     },
-    /**
-     * Устанавливает значение параметра точки для последнего выбранного тела.
-     * 
-     * @param what
-     *          Какой параметр менять.
-     * @param value
-     *          Значение параметра.
-     * @memberOf mechanismReturn
-     */
-    setPoint : function(what, value) {
-      var element = selectedElements.pop();
-      if (element) {
-        selectedElements.push(element);
-        if (element.isPoint()) {
-          if (what == 'type') {
-            element.setType(value);
-          } else {
-            var newX = element.x, newY = element.y;
-            if (what == 'x' && box2d.isValid.x(value)) {
-              newX = value;
-            } else if (what == 'y' && box2d.isValid.y(value)) {
-              newY = value;
+    set : {
+      /**
+       * Устанавливает значение параметра точки для последнего выбранного тела.
+       * 
+       * @param what
+       *          Какой параметр менять.
+       * @param value
+       *          Значение параметра.
+       * @memberOf set
+       */
+      point : function(what, value) {
+        var element = selectedElements.pop();
+        if (element) {
+          selectedElements.push(element);
+          if (element.isPoint()) {
+            if (what == 'type') {
+              element.setType(value);
+            } else {
+              var newX = element.x, newY = element.y;
+              if (what == 'x' && box2d.isValid.x(value)) {
+                newX = value;
+              } else if (what == 'y' && box2d.isValid.y(value)) {
+                newY = value;
+              }
+              
+              element.beginFlying();
+              element.setPosition(newX, newY);
+              element.endFlying();
             }
-            
-            element.beginFlying();
-            element.setPosition(newX, newY);
-            element.endFlying();
           }
         }
-      }
+      },
+      /**
+       * Устанавливает показ надписей к элементам.
+       */
+      labels : function(value) {
+        drawLabels = value;
+      },
+      /**
+       * Устанавливает контекст рисования.
+       */
+      context : function(context) {
+        ctx = context;
+      },
+      /**
+       * Устанавливает масштаб рисования.
+       */
+      scale : function(scl) {
+        scale = scl;
+      },
     },
     /**
      * Отрисовывает все элементы.
+     * 
+     * @memberOf mechanismReturn
      */
     draw : function() {
       var edges = getEdges();
       for ( var i in edges) {
         edges[i].draw();
       }
-      for ( var i in getPoints()) {
-        getPoints()[i].draw();
+      var points = getPoints();
+      for ( var i in points) {
+        points[i].draw();
       }
     },
-    /**
-     * Устанавливает показ надписей к элементам.
-     */
-    setLabels : function(value) {
-      drawLabels = value;
-    },
-    /**
-     * Устанавливает контекст рисования.
-     */
-    setContext : function(context) {
-      ctx = context;
-    },
+    
     Point : Point,
     Edge : Edge,
     /**
