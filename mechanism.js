@@ -21,6 +21,22 @@ var mechanism = (function() {
   var currentBody;
   
   /**
+   * Цветовая схема.
+   * 
+   * @memberOf mechanism
+   */
+  var colors = {
+    /**
+     * @memberOf colors
+     */
+    active : '#fc6e06',
+    defaults : '#555',
+    back : '#fff',
+    labels : '#05f',
+    shadow : 'fff'
+  };
+  
+  /**
    * Создает новый Shape. Основа для всех фигур.
    * 
    * @memberOf mechanism

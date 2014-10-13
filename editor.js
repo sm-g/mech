@@ -47,22 +47,7 @@ var editor = (function() {
     edgePoints : 0,
     edgeLength : 0,
     currentState : 0
-  };
-  /**
-   * Цветовая схема.
-   * 
-   * @memberOf editor
-   */
-  var colors = {
-    /**
-     * @memberOf colors
-     */
-    active : '#fc6e06',
-    defaults : '#555',
-    back : '#fff',
-    labels : '#05f',
-    shadow : 'fff'
-  };
+  };  
   /**
    * Состояние мыши.
    * 
