@@ -174,7 +174,8 @@ var editor = (function() {
       }, false);
       
       dashboard.elementId.addEventListener('input', function(e) {
-        mechanism.selectElement(+e.target.value);
+        var element = mechanism.selectElement(+e.target.value);
+        showInfo(element);
       }, false);
       
       dashboard.pointX.addEventListener('input', function(e) {
@@ -197,25 +198,29 @@ var editor = (function() {
       }, false);
       
       canvas.addEventListener('click', function(e) {
-        mechanism.onClick();
+        var newPoint = mechanism.onClick();
+        showInfo(newPoint);
       }, false);
       
       canvas.addEventListener('mousemove', function(e) {
         mouse.x = (e.clientX - canvasPosition.x) / scale;
         mouse.y = (e.clientY - canvasPosition.y) / scale;
-        mechanism.onMove();
+        var element = mechanism.onMove();
+        showInfo(element);
       }, false);
       
       canvas.addEventListener('mousedown', function(e) {
         mouse.isDown = true;
         mouse.isCtrl = e.ctrlKey;
-        mechanism.onDown();
+        var element = mechanism.onDown();
+        showInfo(element);
       }, false);
       
       canvas.addEventListener('mouseup', function(e) {
         mouse.isDown = false;
         mouse.isCtrl = false;
-        mechanism.onUp();
+        var element = mechanism.onUp();
+        showInfo(element);
       }, false);
       
       var keyCodes = {

@@ -57,7 +57,7 @@ var mechanism = (function() {
   var Element = function(options) {
     Shape.apply(this, arguments);
     this.body = options.body || null;
-    this.isActive = options.isActive || false;
+    this.isActive = options.isActive || false; // mouse down and move
     elements.push(this);
   };
   
@@ -73,13 +73,11 @@ var mechanism = (function() {
   Element.prototype.select = function() {
     if (selectedElements.indexOf(this) == -1) {
       selectedElements.push(this);
-      showInfo(this);
     }
   };
   Element.prototype.unselect = function() {
     var index = selectedElements.indexOf(this);
     selectedElements.splice(index, 1);
-    showLastSelectedInfo();
   };
   Element.prototype.isSelected = function() {
     return selectedElements.indexOf(this) != -1;
@@ -433,31 +431,19 @@ var mechanism = (function() {
     }
   };
   /**
-   * Показывает данные для последнего элемента в списке выделенных.
-   * 
-   * @memberOf mechanism
-   */
-  var showLastSelectedInfo = function() {
-    var element = selectedElements.pop();
-    showInfo(element);
-    if (element) {
-      selectedElements.push(element);
-    }
-  };
-  /**
    * Убирает выделение со всех элементов.
    * 
    * @memberOf mechanism
    */
   var unselectAll = function() {
     selectedElements = [];
-    showInfo();
   };
   
   var ret = {
     /**
      * Обрабатывает событие mousedown.
      * 
+     * @return element to show info
      * @memberOf mechanismReturn
      */
     onDown : function() {
@@ -470,7 +456,6 @@ var mechanism = (function() {
           }
           
           element.select();
-          
           // соединяем две выделенные точки
           if (selectedElements.length == 2 && selectedElements[0].isPoint()
               && selectedElements[1].isPoint()) {
@@ -479,38 +464,49 @@ var mechanism = (function() {
           
           element.isActive = true;
         }
+        return element;
       }
     },
     /**
      * Обрабатывает событие mouseup.
+     * 
+     * @return element to show info
      */
     onUp : function() {
       if (box2d.get.world().paused && currentBody) {
-        var element = getElementOfBody(currentBody);
-        if (element && element.isPoint()) {
-          if (element.isSelected() && !element.isActive) {
+        var point = getElementOfBody(currentBody);
+        if (point && point.isPoint()) {
+          if (point.isSelected() && !point.isActive) {
             // снимаем выделение
-            element.unselect();
-          }
-          element.isActive = false;
-          if (element.isFlying) {
-            // восстанавливаем ребра
-            element.endFlying();
+            point.unselect();
+            // show last sel
+            return selectedElements[selectedElements.length - 1];
+          } else {
+            point.isActive = false;
+            if (point.isFlying) {
+              // восстанавливаем ребра
+              point.endFlying();
+            }
+            return point;
           }
         }
       }
     },
     /**
      * Обрабатывает событие click.
+     * 
+     * @return newPoint or null
      */
     onClick : function() {
       if (box2d.get.world().paused && !currentBody) {
         if (selectedElements.length < 2) {
           unselectAll();
-          createPoint({
+          var newPoint = createPoint({
             x : mouse.x,
             y : mouse.y
-          }).select();
+          })
+          newPoint.select();
+          return newPoint;
         } else {
           // просто снимаем выделение, если было выделено более 1
           // элемента
@@ -535,7 +531,7 @@ var mechanism = (function() {
             element.setPosition(mouse.x, mouse.y);
           }
           element.isActive = true;
-          showInfo(element);
+          return element;
         }
       }
     },
@@ -552,8 +548,8 @@ var mechanism = (function() {
       }
     },
     onAKeyUp : function() {
-      if (world.paused) {
-        connectPoints(selectedElements.filter(isPoint));
+      if (box2d.get.world().paused) {
+        mechanism.connectPoints(selectedElements.filter(isPoint));
       }
     },
     /**
@@ -623,6 +619,7 @@ var mechanism = (function() {
       if (element) {
         element.select();
       }
+      return element;
     },
     /**
      * Запускает симуляцию.
