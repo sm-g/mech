@@ -14,7 +14,7 @@ var mechanism = (function() {
     clockwiseFixed : 1,
     joint : 2
   };
-  var hasNewElements = false, drawLabels = false;  
+  var hasNewElements = false, drawLabels = false;
   var elements = [], selectedElements = [];
   var currentBody;
   
@@ -106,7 +106,7 @@ var mechanism = (function() {
     } else {
       joint.Initialize(element.body, this.body, this.body.GetWorldCenter());
     }
-    world.CreateJoint(joint);
+    box2d.get.world().CreateJoint(joint);
   };
   /**
    * Удаляет все соединения с другими элементами.
@@ -121,7 +121,7 @@ var mechanism = (function() {
         b : getElementOfBody(j.joint.m_bodyB)
       });
       
-      world.DestroyJoint(j.joint);
+      box2d.get.world().DestroyJoint(j.joint);
     }
     return bodiesToJoin;
   };
@@ -207,7 +207,7 @@ var mechanism = (function() {
   };
   
   Point.prototype.destroy = function() {
-    world.DestroyBody(this.body);
+    box2d.get.world().DestroyBody(this.body);
     var index = elements.indexOf(this);
     elements.splice(index, 1);
     var edgesCopy = this.edges.slice();
@@ -304,7 +304,7 @@ var mechanism = (function() {
     return pp.length;
   };
   Edge.prototype.destroy = function() {
-    world.DestroyBody(this.body);
+    box2d.get.world().DestroyBody(this.body);
     var index = elements.indexOf(this);
     elements.splice(index, 1);
     this.removeFromPoints();
@@ -462,7 +462,7 @@ var mechanism = (function() {
      */
     onDown : function() {
       currentBody = box2d.get.bodyAtMouse();
-      if (world.paused && currentBody) {
+      if (box2d.get.world().paused && currentBody) {
         var element = getElementOfBody(currentBody);
         if (element && !element.isSelected()) {
           if (!mouse.isCtrl) {
@@ -485,7 +485,7 @@ var mechanism = (function() {
      * Обрабатывает событие mouseup.
      */
     onUp : function() {
-      if (world.paused && currentBody) {
+      if (box2d.get.world().paused && currentBody) {
         var element = getElementOfBody(currentBody);
         if (element && element.isPoint()) {
           if (element.isSelected() && !element.isActive) {
@@ -504,7 +504,7 @@ var mechanism = (function() {
      * Обрабатывает событие click.
      */
     onClick : function() {
-      if (world.paused && !currentBody) {
+      if (box2d.get.world().paused && !currentBody) {
         if (selectedElements.length < 2) {
           unselectAll();
           createPoint({
@@ -522,7 +522,7 @@ var mechanism = (function() {
      * Обрабатывает событие mousemove.
      */
     onMove : function() {
-      if (world.paused && mouse.isDown) {
+      if (box2d.get.world().paused && mouse.isDown) {
         if (currentBody) {
           var element = getElementOfBody(currentBody);
           if (element.isPoint()) {
@@ -543,7 +543,7 @@ var mechanism = (function() {
      * Обрабатывает нажатие delete.
      */
     onDelete : function() {
-      if (world.paused && selectedElements[0]) {
+      if (box2d.get.world().paused && selectedElements[0]) {
         // удаляем все выбранные элементы
         for ( var i in selectedElements) {
           selectedElements[i].destroy();
@@ -628,21 +628,21 @@ var mechanism = (function() {
      * Запускает симуляцию.
      */
     start : function() {
-      world.paused = false;
+      box2d.get.world().paused = false;
       loop.setSimulate(true);
     },
     /**
      * Приостанавливает симуляцию.
      */
     pause : function() {
-      world.paused = true;
+      box2d.get.world().paused = true;
       loop.setSimulate(false);
     },
     /**
      * Останавливает симуляцию, сбрасывает позиции элементов.
      */
     stop : function() {
-      world.paused = true;
+      box2d.get.world().paused = true;
       loop.setSimulate(false);
       for ( var i in elements) {
         elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));

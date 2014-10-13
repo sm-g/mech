@@ -15,10 +15,8 @@ var editor = (function() {
         };
   })();
   
-  // режим отладки
-  var debug = false;
+  var scale, canvas, ctx;
   
-  var scale, canvas, ctx, world;
   /**
    * Кнопки управления симуляцией.
    * 
@@ -257,8 +255,8 @@ var editor = (function() {
         requestAnimFrame(loop.process);
       },
       step : function() {
-        world.Step(stepRate, 10, 10);
-        world.ClearForces();
+        box2d.get.world().Step(stepRate, 10, 10);
+        box2d.get.world().ClearForces();
       },
       /**
        * Обновляет положения элементов.
@@ -266,7 +264,7 @@ var editor = (function() {
       update : function() {
         canvas.height = area.clientHeight;
         canvas.width = area.clientWidth;
-        for (var b = world.GetBodyList(); b; b = b.m_next) {
+        for (var b = box2d.get.world().GetBodyList(); b; b = b.m_next) {
           var id = b.GetUserData();
           if (b.IsActive() && typeof id !== 'undefined' && id != null
               && id > -1) {
@@ -279,7 +277,7 @@ var editor = (function() {
       },
       draw : function() {
         if (debug) {
-          world.DrawDebugData();
+          box2d.get.world().DrawDebugData();
         } else {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
