@@ -140,15 +140,23 @@ var editor = (function() {
       var canvasPosition = helpers.getElementPosition(canvas);
       
       controls.play.addEventListener('click', function(e) {
+        box2d.get.world().paused = false;
         mechanism.start();
+        loop.setSimulate(true);
       }, false);
       
       controls.pause.addEventListener('click', function(e) {
+        box2d.get.world().paused = true;
         mechanism.pause();
+        loop.setSimulate(false);
       }, false);
       
       controls.stop.addEventListener('click', function(e) {
+        box2d.get.world().paused = true;
         mechanism.stop();
+        loop.setSimulate(false);
+        
+        mechanism.load(dashboard.currentState.value);
       }, false);
       
       controls.load.addEventListener('click', function(e) {

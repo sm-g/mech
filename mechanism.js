@@ -459,9 +459,6 @@ var mechanism = (function() {
   
   var ret = {
     /**
-     * Обрабатывает событие mousedown.
-     * 
-     * @return element to show info
      * @memberOf mechanismReturn
      */
     handlers : {
@@ -658,26 +655,21 @@ var mechanism = (function() {
      * Запускает симуляцию.
      */
     start : function() {
-      box2d.get.world().paused = false;
-      loop.setSimulate(true);
+
     },
     /**
      * Приостанавливает симуляцию.
      */
     pause : function() {
-      box2d.get.world().paused = true;
-      loop.setSimulate(false);
+
     },
     /**
      * Останавливает симуляцию, сбрасывает позиции элементов.
      */
     stop : function() {
-      box2d.get.world().paused = true;
-      loop.setSimulate(false);
       for ( var i in elements) {
         elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
-      }
-      mechanism.load(dashboard.currentState.value);
+      }      
     },
     /**
      * @returns Требуется ли обновить текущее состояние.
