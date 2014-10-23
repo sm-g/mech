@@ -570,7 +570,7 @@ var mechanism = (function() {
       },
       onAKeyUp : function() {
         if (box2d.get.world().paused) {
-          mechanism.connectPoints(selectedElements.filter(isPoint));
+          connectPoints(selectedElements.filter(isPoint));
         }
       }
     },
