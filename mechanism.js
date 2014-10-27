@@ -32,7 +32,8 @@ var mechanism = (function() {
     defaults : '#555',
     back : '#fff',
     labels : '#05f',
-    shadow : 'fff'
+    shadow : '#fff',
+    group : '#bbb'
   };
   
   /**
@@ -403,8 +404,9 @@ var mechanism = (function() {
    * Удаляем спец-ребра, каждое ребро группы помещаем в новую группу.
    */
   Group.prototype.destroy = function() {
-    for ( var i in this.getStiffEdges()) {
-      this.edges[i].destroy();
+    var stiffs = this.getStiffEdges();
+    for ( var i in stiffs) {
+      stiffs[i].destroy();
     }
     var l = this.edges.length;
     while (l--) {
@@ -451,6 +453,45 @@ var mechanism = (function() {
       return edge.id;
     }).join();
     return [ this.id, 'g', edgesStr ].join();
+  };
+  
+  /**
+   * Звено выделено, когда выбраны все его пары.
+   * @returns
+   */
+  Group.prototype.isSelected = function() {
+    return _.every(this.getPoints(), function(p) {
+      return p.isSelected()
+    });
+  };
+  
+  Group.prototype.getPoints = function() {
+    var res = [];
+    _.each(this.edges, function(e) {
+      res.push(e.p1);
+    });
+    return res;
+  };
+  
+  Group.prototype.draw = function() {
+    ctx.save();
+    
+    if (this.isSelected()) {
+      ctx.fillStyle = colors.active;
+    } else {
+      ctx.fillStyle = colors.group;
+    }
+    
+    ctx.lineWidth = scale / 2 | 0;
+    ctx.beginPath();    
+    var points = this.getPoints();
+    points.map(function(p) {
+      ctx.lineTo(p.x * scale, p.y * scale);
+    });
+    ctx.fill();
+    ctx.restore();
+    
+    ctx.restore();
   };
   
   /**
@@ -780,6 +821,9 @@ var mechanism = (function() {
      * @memberOf mechanismReturn
      */
     draw : function() {
+      for ( var i in grs) {
+        grs[i].draw();
+      }
       var edges = getEdges();
       for ( var i in edges) {
         edges[i].draw();
@@ -788,6 +832,7 @@ var mechanism = (function() {
       for ( var i in points) {
         points[i].draw();
       }
+      
     },
     
     Point : Point,
