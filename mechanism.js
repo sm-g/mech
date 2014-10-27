@@ -443,6 +443,7 @@ var mechanism = (function() {
   
   /**
    * Звено выделено, когда выбраны все его пары.
+   * 
    * @returns
    */
   Group.prototype.isSelected = function() {
@@ -469,7 +470,7 @@ var mechanism = (function() {
     }
     
     ctx.lineWidth = scale / 2 | 0;
-    ctx.beginPath();    
+    ctx.beginPath();
     var points = this.getPoints();
     points.map(function(p) {
       ctx.lineTo(p.x * scale, p.y * scale);
@@ -631,7 +632,7 @@ var mechanism = (function() {
   var unselectAll = function() {
     selectedElements = [];
   };
-  
+  var mouseOnDown;
   var ret = {
     /**
      * @memberOf mechanismReturn
@@ -645,16 +646,17 @@ var mechanism = (function() {
        */
       onDown : function(mouse) {
         currentBody = box2d.get.bodyAtMouse(mouse);
-        if (box2d.get.world().paused && currentBody) {
+        if (canMove && currentBody) {
           var element = getElementOfBody(currentBody);
           if (element && !element.isSelected()) {
             if (!mouse.isCtrl) {
               unselectAll();
             }
             
-            element.select();            
+            element.select();
             element.isActive = true;
           }
+          mouseOnDown = _.clone(mouse);
           return element;
         }
       },
@@ -664,7 +666,7 @@ var mechanism = (function() {
        * @return element to show info
        */
       onUp : function(mouse) {
-        if (box2d.get.world().paused && currentBody) {
+        if (canMove && currentBody) {
           var point = getElementOfBody(currentBody);
           if (point && point.isPoint()) {
             if (point.isSelected() && !point.isActive) {
@@ -689,7 +691,7 @@ var mechanism = (function() {
        * @return newPoint or null
        */
       onClick : function(mouse) {
-        if (box2d.get.world().paused && !currentBody) {
+        if (canMove && !currentBody) {
           if (selectedElements.length < 2) {
             unselectAll();
             var newPoint = createPoint({
@@ -709,7 +711,7 @@ var mechanism = (function() {
        * Обрабатывает событие mousemove.
        */
       onMove : function(mouse) {
-        if (box2d.get.world().paused && mouse.isDown) {
+        if (canMove && mouse.isDown) {
           if (currentBody) {
             var element = getElementOfBody(currentBody);
             if (element.isPoint()) {
@@ -721,6 +723,22 @@ var mechanism = (function() {
               // двигаем точку
               element.setPosition(mouse.x, mouse.y);
             }
+            if (element.isEdge()) {
+              if (mouse.x != mouseOnDown.x || mouse.y != mouseOnDown.y) {
+                // изменение длины ребра - расстоние между наклонной и высотой,
+                // опущенной к ребру
+                var d = helpers.distToHeight(element.p1, element.p2,
+                    mouseOnDown, mouse) || 0;
+                
+                var normal = helpers.normalFrom(element.p1, element.p2,
+                    mouseOnDown);
+                var left = helpers.isLeft(mouseOnDown, normal, mouse);
+                
+                var newL = left ? element.getLength() + d : element.getLength()
+                    - d;
+               // element.setLenght(newL);
+              }
+            }
             element.isActive = true;
             return element;
           }
@@ -730,7 +748,7 @@ var mechanism = (function() {
        * Обрабатывает нажатие delete.
        */
       onDelete : function() {
-        if (box2d.get.world().paused && selectedElements[0]) {
+        if (canMove && selectedElements[0]) {
           // удаляем все выбранные элементы
           for ( var i in selectedElements) {
             selectedElements[i].destroy();
