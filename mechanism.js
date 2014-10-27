@@ -6,7 +6,7 @@
  */
 var mechanism = (function() {
   var ctx, scale;
-  var hasNewElements = false, drawLabels = false;
+  var isNewState = false, drawLabels = false, canMove = true;
   var elements = [], selectedElements = [], grs = [];
   var currentBody;
   
@@ -42,7 +42,7 @@ var mechanism = (function() {
    * @memberOf mechanism
    * @constructor
    */
-  Shape = function(options) {
+  var Shape = function(options) {
     // автоинкремент
     this.id = options.id || helpers.counter();
     this.x = options.x || 0;
@@ -70,13 +70,13 @@ var mechanism = (function() {
    * @memberOf mechanism
    * @constructor
    */
-  Element = function(options) {
+  var Element = function(options) {
     Shape.apply(this, arguments);
     this.body = options.body || null;
     this.isActive = options.isActive || false; // mouse down and move
     
     elements.push(this);
-    hasNewElements = true;
+    isNewState = true;
   };
   
   Element.prototype = Object.create(Shape.prototype);
@@ -86,7 +86,7 @@ var mechanism = (function() {
     var index = elements.indexOf(this);
     elements.splice(index, 1);
     
-    hasNewElements = true;
+    isNewState = true;
   };
   Element.prototype.getColorBySelection = function() {
     if (this.isSelected()) {
@@ -151,7 +151,7 @@ var mechanism = (function() {
   /**
    * @memberOf mechanism
    */
-  Point = function(options) {
+  var Point = function(options) {
     Element.apply(this, arguments);
     this.type = options.type || pointTypes.joint;
     this.isStatic = (this.type != pointTypes.joint);
@@ -172,7 +172,7 @@ var mechanism = (function() {
     this.x = x;
     this.y = y;
     this.body.SetPosition(new b2Vec2(x, y));
-    hasNewElements = true;
+    isNewState = true;
   };
   /**
    * Меняет тип точки
@@ -195,7 +195,7 @@ var mechanism = (function() {
       this.type = type;
       this.isStatic = (type != pointTypes.joint);
       box2d.refresh.bodyType(this);
-      hasNewElements = true;
+      isNewState = true;
     }
   };
   
@@ -209,14 +209,6 @@ var mechanism = (function() {
     this.isFlying = true;
     connectedPoints = [];
     edgesCopy = this.edges.slice();
-    // for ( var i in edgesCopy) {
-    // if (edgesCopy[i].p1 == this) {
-    // connectedPoints.push(edgesCopy[i].p2);
-    // } else {
-    // connectedPoints.push(edgesCopy[i].p1);
-    // }
-    // edgesCopy[i].destroy();
-    // }
     this.edges = [];
   };
   /**
@@ -225,12 +217,6 @@ var mechanism = (function() {
   Point.prototype.endFlying = function() {
     this.isFlying = false;
     this.edges = edgesCopy;
-    // for ( var i in connectedPoints) {
-    // createEdge({
-    // p1 : this,
-    // p2 : connectedPoints[i]
-    // });
-    // }
   };
   /**
    * Уничтожаем точку и все её ребра.
@@ -384,7 +370,7 @@ var mechanism = (function() {
    * 
    * @memberOf mechanism
    */
-  Group = function(options) {
+  var Group = function(options) {
     this.id = options.id || helpers.counter();
     this.edges = [];
     grs.push(this);
@@ -666,13 +652,7 @@ var mechanism = (function() {
               unselectAll();
             }
             
-            element.select();
-            // соединяем две выделенные точки
-            // if (selectedElements.length == 2 && selectedElements[0].isPoint()
-            // && selectedElements[1].isPoint()) {
-            // connectPoints(selectedElements);
-            // }
-            
+            element.select();            
             element.isActive = true;
           }
           return element;
@@ -878,8 +858,8 @@ var mechanism = (function() {
      * @returns Требуется ли обновить текущее состояние.
      */
     isNew : function() {
-      if (hasNewElements) {
-        hasNewElements = false;
+      if (isNewState) {
+        isNewState = false;
         return true;
       }
     },
