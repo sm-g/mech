@@ -7,7 +7,7 @@
 var mechanism = (function() {
   var ctx, scale;
   var hasNewElements = false, drawLabels = false;
-  var elements = [], selectedElements = [];
+  var elements = [], selectedElements = [], grs = [];
   var currentBody;
   
   /**
@@ -41,7 +41,7 @@ var mechanism = (function() {
    * @memberOf mechanism
    * @constructor
    */
-  var Shape = function(options) {
+  Shape = function(options) {
     // автоинкремент
     this.id = options.id || helpers.counter();
     this.x = options.x || 0;
@@ -53,17 +53,15 @@ var mechanism = (function() {
       y : null
     };
     this.isStatic = options.isStatic || false;
-    
-    /**
-     * Обновляет положение фигуры.
-     */
-    this.update = function(options) {
-      this.angle = options.angle;
-      this.center = options.center;
-      this.x = options.x;
-      this.y = options.y;
-    };
-    
+  };
+  /**
+   * Обновляет положение фигуры.
+   */
+  Shape.prototype.update = function(options) {
+    this.angle = options.angle;
+    this.center = options.center;
+    this.x = options.x;
+    this.y = options.y;
   };
   /**
    * Создаёт новый Element.
@@ -71,15 +69,24 @@ var mechanism = (function() {
    * @memberOf mechanism
    * @constructor
    */
-  var Element = function(options) {
+  Element = function(options) {
     Shape.apply(this, arguments);
     this.body = options.body || null;
     this.isActive = options.isActive || false; // mouse down and move
+    
     elements.push(this);
+    hasNewElements = true;
   };
   
   Element.prototype = Object.create(Shape.prototype);
-  
+  Element.prototype.destroy = function() {
+    box2d.get.world().DestroyBody(this.body);
+    
+    var index = elements.indexOf(this);
+    elements.splice(index, 1);
+    
+    hasNewElements = true;
+  };
   Element.prototype.getColorBySelection = function() {
     if (this.isSelected()) {
       return colors.active;
@@ -143,7 +150,7 @@ var mechanism = (function() {
   /**
    * @memberOf mechanism
    */
-  var Point = function(options) {
+  Point = function(options) {
     Element.apply(this, arguments);
     this.type = options.type || pointTypes.joint;
     this.isStatic = (this.type != pointTypes.joint);
@@ -151,7 +158,6 @@ var mechanism = (function() {
     this.edges = [];
     // точка перемещается, потеряв связи с другими точками
     this.isFlying = false;
-    hasNewElements = true;
   };
   Point.prototype = Object.create(Element.prototype);
   Point.prototype.toString = function() {
@@ -192,23 +198,24 @@ var mechanism = (function() {
     }
   };
   
-  var connectedPoints = [];
+  var connectedPoints = [], edgesCopy = [];
   
   /**
-   * Удаляет рёбра, сохраняя точки, с которыми они соединены.
+   * Убирает ребра точки. Удаляет рёбра, сохраняя точки, с которыми они
+   * соединены.
    */
   Point.prototype.beginFlying = function() {
     this.isFlying = true;
     connectedPoints = [];
-    var edgesCopy = this.edges.slice();
-    for ( var i in edgesCopy) {
-      if (edgesCopy[i].p1 == this) {
-        connectedPoints.push(edgesCopy[i].p2);
-      } else {
-        connectedPoints.push(edgesCopy[i].p1);
-      }
-      edgesCopy[i].destroy();
-    }
+    edgesCopy = this.edges.slice();
+    // for ( var i in edgesCopy) {
+    // if (edgesCopy[i].p1 == this) {
+    // connectedPoints.push(edgesCopy[i].p2);
+    // } else {
+    // connectedPoints.push(edgesCopy[i].p1);
+    // }
+    // edgesCopy[i].destroy();
+    // }
     this.edges = [];
   };
   /**
@@ -216,20 +223,23 @@ var mechanism = (function() {
    */
   Point.prototype.endFlying = function() {
     this.isFlying = false;
-    for ( var i in connectedPoints) {
-      createEdge(this, connectedPoints[i]);
-    }
+    this.edges = edgesCopy;
+    // for ( var i in connectedPoints) {
+    // createEdge({
+    // p1 : this,
+    // p2 : connectedPoints[i]
+    // });
+    // }
   };
-  
+  /**
+   * Уничтожаем точку и все её ребра.
+   */
   Point.prototype.destroy = function() {
-    box2d.get.world().DestroyBody(this.body);
-    var index = elements.indexOf(this);
-    elements.splice(index, 1);
-    var edgesCopy = this.edges.slice();
-    for ( var i in edgesCopy) {
-      edgesCopy[i].destroy();
+    Element.prototype.destroy.call(this);
+    var l = this.edges.length;
+    while (l--) {
+      this.edges[l].destroy();
     }
-    hasNewElements = true;
   };
   Point.prototype.draw = function() {
     var x = this.x * scale;
@@ -298,11 +308,13 @@ var mechanism = (function() {
     this.p2 = options.p2;
     this.p1.edges.push(this);
     this.p2.edges.push(this);
-    hasNewElements = true;
+    
+    options.gr.add(this);
+    this.invisible = options.invisible || false;
   };
   Edge.prototype = Object.create(Element.prototype);
   Edge.prototype.toString = function() {
-    return [ this.id, 'e', this.p1.id, this.p2.id ].join();
+    return [ this.id, 'e', this.p1.id, this.p2.id, this.gr.id ].join();
   };
   Edge.prototype.width = 0.2;
   /**
@@ -311,6 +323,7 @@ var mechanism = (function() {
   Edge.prototype.removeFromPoints = function() {
     var index = this.p1.edges.indexOf(this);
     this.p1.edges.splice(index, 1);
+    
     index = this.p2.edges.indexOf(this);
     this.p2.edges.splice(index, 1);
   };
@@ -318,14 +331,23 @@ var mechanism = (function() {
     var pp = new paper.Point(this.p1.x - this.p2.x, this.p1.y - this.p2.y);
     return pp.length;
   };
+  /**
+   * Уничтожает ребро.
+   */
   Edge.prototype.destroy = function() {
-    box2d.get.world().DestroyBody(this.body);
-    var index = elements.indexOf(this);
-    elements.splice(index, 1);
+    Element.prototype.destroy.call(this);
+    
     this.removeFromPoints();
-    hasNewElements = true;
+    // remove from gr
+    index = this.gr.edges.indexOf(this);
+    this.gr.edges.splice(index, 1);
+    
+    this.gr.destroy();
   };
   Edge.prototype.draw = function() {
+    // if (this.invisible)
+    // return;
+    
     var x = this.x * scale;
     var y = this.y * scale;
     ctx.save();
@@ -357,6 +379,81 @@ var mechanism = (function() {
   };
   
   /**
+   * Группа ребер — звено.
+   * 
+   * @memberOf mechanism
+   */
+  Group = function(options) {
+    this.id = options.id || helpers.counter();
+    this.edges = [];
+    grs.push(this);
+  }
+  /**
+   * Возвращает ребра жесткости звена.
+   * 
+   * @returns
+   */
+  Group.prototype.getStiffEdges = function() {
+    return _.filter(this.edges, function(e) {
+      return e.invisible
+    });
+  };
+  
+  /**
+   * Удаляем спец-ребра, каждое ребро группы помещаем в новую группу.
+   */
+  Group.prototype.destroy = function() {
+    for ( var i in this.getStiffEdges()) {
+      this.edges[i].destroy();
+    }
+    var l = this.edges.length;
+    while (l--) {
+      var e = this.edges[l];
+      if (!e.invisible) {
+        var g = new Group({});
+        g.add(e);
+      }
+    }
+    
+    grs = _.without(grs, this);
+  }
+  /**
+   * Добавляет ребро к группе.
+   * 
+   * @param edge
+   */
+  Group.prototype.add = function(edge) {
+    if (edge.gr == this)
+      return;
+    // ребро было в группе — меняем группу
+    if (edge.gr)
+      edge.gr.remove(edge);
+    edge.gr = this;
+    
+    if (!_.contains(this.edges, edge))
+      this.edges.push(edge);
+  }
+  /**
+   * Убирает ребро из группы.
+   * 
+   * @param edge
+   */
+  Group.prototype.remove = function(edge) {
+    this.edges = _.without(this.edges, edge);
+    edge.gr = null;
+    
+    if (this.edges.length == 0)
+      this.destroy();
+  }
+
+  Group.prototype.toString = function() {
+    var edgesStr = this.edges.map(function(edge) {
+      return edge.id;
+    }).join();
+    return [ this.id, 'g', edgesStr ].join();
+  };
+  
+  /**
    * @memberOf mechanism
    */
   var isPoint = function(element) {
@@ -380,6 +477,10 @@ var mechanism = (function() {
   var getEdges = function() {
     return elements.filter(isEdge);
   };
+  
+  var getWithId = function() {
+    return _.union(elements, grs);
+  };
   /**
    * Создаёт точку с заданными параметрами.
    * 
@@ -399,34 +500,82 @@ var mechanism = (function() {
    * @memberOf mechanism
    * @returns Новое ребро между точками (если создано)
    */
-  var createEdge = function(p1, p2, id) {
-    if (getEdgeBetweenPoints(p1, p2) || p1 == p2)
+  var createEdge = function(options) {
+    // не создавать ребро
+    if (options.p1 == options.p2)
       return;
+    // только одно ребро между точками
+    var exist = getEdgeBetweenPoints(options.p1, options.p2);
+    if (exist) {
+      return;
+    }
     
-    var edge = new Edge({
-      p1 : p1,
-      p2 : p2,
-      id : id || 0
-    });
+    var edge = new Edge(options);
     var body = box2d.addToWorld(edge);
     edge.body = body;
     
-    edge.join(p1, p1.type == pointTypes.clockwiseFixed);
-    edge.join(p2, p2.type == pointTypes.clockwiseFixed);
+    edge.join(options.p1, options.p1.type == pointTypes.clockwiseFixed);
+    edge.join(options.p2, options.p2.type == pointTypes.clockwiseFixed);
     return edge;
   };
   /**
-   * Соединяет точки рёбрами в контур.
+   * Соединяет точки рёбрами (в звено).
    * 
    * @memberOf mechanism
    */
   var connectPoints = function(points) {
-    points.reduce(function(prevP, curP) {
-      createEdge(prevP, curP);
-      return curP;
+    if (points.length < 2)
+      return;
+    
+    // Удаляем все существующие ребра между точками. Группы тоже удалятся.
+    for (var i = 0; i < points.length; i++) {
+      var p = points[i];
+      var l = p.edges.length;
+      while (l--) {
+        if (_.contains(points, p.edges[l].p1)
+            && _.contains(points, p.edges[l].p2))
+          p.edges[l].destroy();
+      }
+    }
+    
+    // Создаем группу
+    var gr0 = new Group({});
+    
+    // соединяем точки в контур
+    for (var i = 1; i < points.length; i++) {
+      createEdge({
+        p1 : points[i],
+        p2 : points[i - 1],
+        gr : gr0
+      });
+    }
+    createEdge({
+      p1 : points[0],
+      p2 : points[points.length - 1],
+      gr : gr0
     });
-    createEdge(points[0], points[points.length - 1]);
+    
+    // Добавляем ребра жесткости
+    triangulate(points, gr0);
   };
+  /**
+   * Разбивает выпуклый многоугольник на треугольники спец-ребрами.
+   * 
+   * @memberOf mechanism
+   */
+  var triangulate = function(points, gr) {
+    if (points.length > 3) {
+      for (var i = 2; i < points.length - 1; i++) {
+        createEdge({
+          p1 : points[0],
+          p2 : points[i],
+          invisible : true,
+          gr : gr
+        });
+      }
+    }
+  }
+
   /**
    * @memberOf mechanism
    * @returns Элемент, связанный с телом.
@@ -478,10 +627,10 @@ var mechanism = (function() {
             
             element.select();
             // соединяем две выделенные точки
-            if (selectedElements.length == 2 && selectedElements[0].isPoint()
-                && selectedElements[1].isPoint()) {
-              connectPoints(selectedElements);
-            }
+            // if (selectedElements.length == 2 && selectedElements[0].isPoint()
+            // && selectedElements[1].isPoint()) {
+            // connectPoints(selectedElements);
+            // }
             
             element.isActive = true;
           }
@@ -648,11 +797,9 @@ var mechanism = (function() {
      * @returns элемент с указанным id.
      */
     getElement : function(id) {
-      for ( var i in elements) {
-        if (elements[i].id == id) {
-          return elements[i];
-        }
-      }
+      return _.findWhere(elements, {
+        id : id
+      });
     },
     selectElement : function(id) {
       var element = mechanism.getElement(id);
@@ -728,19 +875,36 @@ var mechanism = (function() {
             // [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3),
             // this.type,
             // edgesStr]
+            var pDef = elementsDefs[i];
             createPoint({
-              id : +elementsDefs[i][0],
-              x : +elementsDefs[i][2],
-              y : +elementsDefs[i][3]
-            }).setType(elementsDefs[i][4]);
+              id : +pDef[0],
+              x : +pDef[2],
+              y : +pDef[3]
+            }).setType(pDef[4]);
+          }
+        }
+        for (i in elementsDefs) {
+          if (elementsDefs[i][1] == 'g') {
+            // добавляем группы
+            // [this.id, 'g', edgesStr]
+            new Group({
+              id : +elementsDefs[i][0]
+            });
           }
         }
         for (i in elementsDefs) {
           if (elementsDefs[i][1] == 'e') {
             // добавляем рёбра между точками
-            // [this.id, 'e', this.p1.id, this.p2.id]
-            createEdge(mechanism.getElement(+elementsDefs[i][2]), mechanism
-                .getElement(+elementsDefs[i][3]), +elementsDefs[i][0]);
+            // [this.id, 'e', this.p1.id, this.p2.id, this.gr.id]
+            var eDef = elementsDefs[i];
+            createEdge({
+              p1 : mechanism.getElement(+eDef[2]),
+              p2 : mechanism.getElement(+eDef[3]),
+              id : +eDef[0],
+              gr : _.findWhere(grs, {
+                id : +eDef[4]
+              })
+            });
           }
         }
         helpers.setCounter(lastId + 1);
@@ -753,8 +917,9 @@ var mechanism = (function() {
      */
     save : function() {
       var str = '';
-      for ( var i in elements) {
-        str += elements[i].toString() + '\n';
+      var sorted = _.sortBy(getWithId(), "id");
+      for ( var i in sorted) {
+        str += sorted[i].toString() + '\n';
       }
       
       return str;
