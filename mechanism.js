@@ -8,7 +8,7 @@ var mechanism = (function() {
   var ctx, scale;
   var isNewState = false, drawLabels = false, canMove = true;
   var elements = [], selectedElements = [], grs = [];
-  var currentBody;
+  var currentBody, mouseOnDown;
   
   /**
    * @memberOf mechanism
@@ -83,8 +83,8 @@ var mechanism = (function() {
   Element.prototype.destroy = function() {
     box2d.get.world().DestroyBody(this.body);
     
-    var index = elements.indexOf(this);
-    elements.splice(index, 1);
+    this.unselect();
+    elements = _.without(elements, this)
     
     isNewState = true;
   };
@@ -101,8 +101,7 @@ var mechanism = (function() {
     }
   };
   Element.prototype.unselect = function() {
-    var index = selectedElements.indexOf(this);
-    selectedElements.splice(index, 1);
+    selectedElements = _.without(selectedElements, this);
   };
   Element.prototype.isSelected = function() {
     return selectedElements.indexOf(this) != -1;
@@ -611,7 +610,7 @@ var mechanism = (function() {
   var getElementOfBody = function(body) {
     if (body) {
       var id = body.GetUserData();
-      return mechanism.getElement(id);
+      return mechanism.elements.get(id);
     }
   };
   /**
@@ -632,11 +631,8 @@ var mechanism = (function() {
   var unselectAll = function() {
     selectedElements = [];
   };
-  var mouseOnDown;
-  var ret = {
-    /**
-     * @memberOf mechanismReturn
-     */
+  
+  return {
     handlers : {
       /**
        * Обрабатывает событие mousedown.
@@ -730,13 +726,11 @@ var mechanism = (function() {
                 var d = helpers.distToHeight(element.p1, element.p2,
                     mouseOnDown, mouse) || 0;
                 
+                // увеличиваем, если слева от нормали к ребру
                 var normal = helpers.normalFrom(element.p1, element.p2,
                     mouseOnDown);
                 var left = helpers.isLeft(mouseOnDown, normal, mouse);
-                
-                var newL = left ? element.getLength() + d : element.getLength()
-                    - d;
-               // element.setLenght(newL);
+                element.setLenght(left ? d : -d);
               }
             }
             element.isActive = true;
@@ -748,23 +742,25 @@ var mechanism = (function() {
        * Обрабатывает нажатие delete.
        */
       onDelete : function() {
+        // удаляем все выбранные элементы
         if (canMove && selectedElements[0]) {
-          // удаляем все выбранные элементы
-          for ( var i in selectedElements) {
-            selectedElements[i].destroy();
+          var copy = _.clone(selectedElements);
+          for ( var i in copy) {
+            if (copy[i])
+              copy[i].destroy();
           }
           unselectAll();
         }
       },
       onAKeyUp : function() {
-        if (box2d.get.world().paused) {
+        if (canMove) {
           connectPoints(selectedElements.filter(isPoint));
         }
       }
     },
     set : {
       /**
-       * Устанавливает значение параметра точки для последнего выбранного тела.
+       * Устанавливает значение параметров для последнего выбранного тела.
        * 
        * @param what
        *          Какой параметр менять.
@@ -813,161 +809,170 @@ var mechanism = (function() {
         scale = scl;
       },
     },
-    /**
-     * Отрисовывает все элементы.
-     * 
-     * @memberOf mechanismReturn
-     */
-    draw : function() {
-      for ( var i in grs) {
-        grs[i].draw();
-      }
-      var edges = getEdges();
-      for ( var i in edges) {
-        edges[i].draw();
-      }
-      var points = getPoints();
-      for ( var i in points) {
-        points[i].draw();
-      }
-      
-    },
-    
-    Point : Point,
-    Edge : Edge,
-    /**
-     * @param id
-     * @returns элемент с указанным id.
-     */
-    getElement : function(id) {
-      return _.findWhere(elements, {
-        id : id
-      });
-    },
-    selectElement : function(id) {
-      var element = mechanism.getElement(id);
-      unselectAll();
-      if (element) {
-        element.select();
-      }
-      return element;
-    },
-    /**
-     * Запускает симуляцию.
-     */
-    start : function() {
-      
-    },
-    /**
-     * Приостанавливает симуляцию.
-     */
-    pause : function() {
-      
-    },
-    /**
-     * Останавливает симуляцию, сбрасывает позиции элементов.
-     */
-    stop : function() {
-      for ( var i in elements) {
-        elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
-      }
-    },
-    /**
-     * @returns Требуется ли обновить текущее состояние.
-     */
-    isNew : function() {
-      if (isNewState) {
-        isNewState = false;
-        return true;
-      }
-    },
-    /**
-     * Удаляет все элементы.
-     */
-    clear : function() {
-      unselectAll();
-      var points = getPoints();
-      for ( var i in points) {
-        points[i].destroy();
-      }
-    },
-    /**
-     * Загружает механизм из строки.
-     */
-    load : function(newState) {
-      mechanism.clear();
-      
-      try {
-        var elementsStr = newState.split('\n');
-        var elementsDefs = [];
-        var lastId = -1;
-        for ( var i in elementsStr) {
-          elementsDefs.push(elementsStr[i].split(','));
+    elements : {
+      /**
+       * Отрисовывает все элементы.
+       * 
+       * @memberOf elements
+       */
+      draw : function() {
+        for ( var i in grs) {
+          grs[i].draw();
+        }
+        var edges = getEdges();
+        for ( var i in edges) {
+          edges[i].draw();
+        }
+        var points = getPoints();
+        for ( var i in points) {
+          points[i].draw();
         }
         
-        for (i in elementsDefs) {
-          if (elementsDefs[i][0] == '') {
-            // пропускаем пустые строки
-            continue;
-          }
-          if (lastId < +elementsDefs[i][0]) {
-            lastId = +elementsDefs[i][0];
-          }
-          if (elementsDefs[i][1] == 'p') {
-            // сначала добавляем точки
-            // [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3),
-            // this.type,
-            // edgesStr]
-            var pDef = elementsDefs[i];
-            createPoint({
-              id : +pDef[0],
-              x : +pDef[2],
-              y : +pDef[3]
-            }).setType(pDef[4]);
-          }
+      },
+      
+      Point : Point,
+      Edge : Edge,
+      /**
+       * @param id
+       * @returns элемент с указанным id.
+       */
+      get : function(id) {
+        if (id == 1)
+          var x = 0;
+        return _.findWhere(elements, {
+          id : id
+        });
+      },
+      select : function(id) {
+        var element = mechanism.elements.get(id);
+        unselectAll();
+        if (element) {
+          element.select();
         }
-        for (i in elementsDefs) {
-          if (elementsDefs[i][1] == 'g') {
-            // добавляем группы
-            // [this.id, 'g', edgesStr]
-            new Group({
-              id : +elementsDefs[i][0]
-            });
-          }
-        }
-        for (i in elementsDefs) {
-          if (elementsDefs[i][1] == 'e') {
-            // добавляем рёбра между точками
-            // [this.id, 'e', this.p1.id, this.p2.id, this.gr.id]
-            var eDef = elementsDefs[i];
-            createEdge({
-              p1 : mechanism.getElement(+eDef[2]),
-              p2 : mechanism.getElement(+eDef[3]),
-              id : +eDef[0],
-              gr : _.findWhere(grs, {
-                id : +eDef[4]
-              })
-            });
-          }
-        }
-        helpers.setCounter(lastId + 1);
-      } catch (e) {
-        alert('Ошибка при загрузке механизма. ' + e.name);
+        return element;
       }
     },
-    /**
-     * @returns Механизм в виде строки.
-     */
-    save : function() {
-      var str = '';
-      var sorted = _.sortBy(getWithId(), "id");
-      for ( var i in sorted) {
-        str += sorted[i].toString() + '\n';
+    simulation : {
+      /**
+       * Запускает симуляцию.
+       * 
+       * @memberOf simulation
+       */
+      start : function() {
+        
+      },
+      /**
+       * Приостанавливает симуляцию.
+       */
+      pause : function() {
+        
+      },
+      /**
+       * Останавливает симуляцию, сбрасывает позиции элементов.
+       */
+      stop : function() {
+        for ( var i in elements) {
+          elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
+        }
       }
-      
-      return str;
+    },
+    state : {
+      /**
+       * @returns Требуется ли обновить текущее состояние.
+       * @memberOf state
+       */
+      isNew : function() {
+        if (isNewState) {
+          isNewState = false;
+          return true;
+        }
+      },
+      /**
+       * Удаляет все элементы.
+       */
+      clear : function() {
+        unselectAll();
+        var points = getPoints();
+        for ( var i in points) {
+          points[i].destroy();
+        }
+      },
+      /**
+       * Загружает механизм из строки.
+       */
+      load : function(newState) {
+        mechanism.state.clear();
+        
+        try {
+          var elementsStr = newState.split('\n');
+          var elementsDefs = [];
+          var lastId = -1;
+          for ( var i in elementsStr) {
+            elementsDefs.push(elementsStr[i].split(','));
+          }
+          
+          for (i in elementsDefs) {
+            if (elementsDefs[i][0] == '') {
+              // пропускаем пустые строки
+              continue;
+            }
+            if (lastId < +elementsDefs[i][0]) {
+              lastId = +elementsDefs[i][0];
+            }
+            if (elementsDefs[i][1] == 'p') {
+              // сначала добавляем точки
+              // [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3),
+              // this.type,
+              // edgesStr]
+              var pDef = elementsDefs[i];
+              createPoint({
+                id : +pDef[0],
+                x : +pDef[2],
+                y : +pDef[3]
+              }).setType(pDef[4]);
+            }
+          }
+          for (i in elementsDefs) {
+            if (elementsDefs[i][1] == 'g') {
+              // добавляем группы
+              // [this.id, 'g', edgesStr]
+              new Group({
+                id : +elementsDefs[i][0]
+              });
+            }
+          }
+          for (i in elementsDefs) {
+            if (elementsDefs[i][1] == 'e') {
+              // добавляем рёбра между точками
+              // [this.id, 'e', this.p1.id, this.p2.id, this.gr.id]
+              var eDef = elementsDefs[i];
+              createEdge({
+                p1 : mechanism.elements.get(+eDef[2]),
+                p2 : mechanism.elements.get(+eDef[3]),
+                id : +eDef[0],
+                gr : _.findWhere(grs, {
+                  id : +eDef[4]
+                })
+              });
+            }
+          }
+          helpers.setCounter(lastId + 1);
+        } catch (e) {
+          alert('Ошибка при загрузке механизма. ' + e.name);
+        }
+      },
+      /**
+       * @returns Механизм в виде строки.
+       */
+      save : function() {
+        var str = '';
+        var sorted = _.sortBy(getWithId(), "id");
+        for ( var i in sorted) {
+          str += sorted[i].toString() + '\n';
+        }
+        
+        return str;
+      }
     }
   };
-  
-  return ret;
 })();

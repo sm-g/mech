@@ -45,7 +45,7 @@ var editor = (function() {
     edgePoints : 0,
     edgeLength : 0,
     currentState : 0
-  };  
+  };
   /**
    * Состояние мыши.
    * 
@@ -75,7 +75,7 @@ var editor = (function() {
       dashboard.edgePoints.value = '';
       return;
     }
-    if (element instanceof mechanism.Point) {
+    if (element instanceof mechanism.elements.Point) {
       dashboard.elementName.innerHTML = 'Пара';
       dashboard.edgeLength.style.display = "none";
       dashboard.edgePoints.style.display = "none";
@@ -85,7 +85,7 @@ var editor = (function() {
       dashboard.pointX.value = element.x.toFixed(3);
       dashboard.pointY.value = element.y.toFixed(3);
       dashboard.pointType.selectedIndex = element.type;
-    } else if (element instanceof mechanism.Edge) {
+    } else if (element instanceof mechanism.elements.Edge) {
       dashboard.elementName.innerHTML = 'Звено';
       dashboard.edgeLength.style.display = "block";
       dashboard.edgePoints.style.display = "block";
@@ -141,26 +141,26 @@ var editor = (function() {
       
       controls.play.addEventListener('click', function(e) {
         box2d.get.world().paused = false;
-        mechanism.start();
+        mechanism.simulation.start();
         loop.setSimulate(true);
       }, false);
       
       controls.pause.addEventListener('click', function(e) {
         box2d.get.world().paused = true;
-        mechanism.pause();
+        mechanism.simulation.pause();
         loop.setSimulate(false);
       }, false);
       
       controls.stop.addEventListener('click', function(e) {
         box2d.get.world().paused = true;
-        mechanism.stop();
+        mechanism.simulation.stop();
         loop.setSimulate(false);
         
-        mechanism.load(dashboard.currentState.value);
+        mechanism.state.load(dashboard.currentState.value);
       }, false);
       
       controls.load.addEventListener('click', function(e) {
-        mechanism.load(dashboard.currentState.value);
+        mechanism.state.load(dashboard.currentState.value);
       }, false);
       
       controls.labels.addEventListener('click', function(e) {
@@ -168,7 +168,7 @@ var editor = (function() {
       }, false);
       
       dashboard.elementId.addEventListener('input', function(e) {
-        var element = mechanism.selectElement(+e.target.value);
+        var element = mechanism.elements.select(+e.target.value);
         showInfo(element);
       }, false);
       
@@ -195,14 +195,17 @@ var editor = (function() {
       
       canvas.addEventListener('click', function(e) {
         var newPoint = mechanism.handlers.onClick(mouse);
-        showInfo(newPoint);
+        if (newPoint)
+          showInfo(newPoint);
       }, false);
       
       canvas.addEventListener('mousemove', function(e) {
         mouse.x = (e.clientX - canvasPosition.x) / scale;
         mouse.y = (e.clientY - canvasPosition.y) / scale;
-        var element = mechanism.handlers.onMove(mouse);
-        showInfo(element);
+        if (mouse.isDown) {
+          var element = mechanism.handlers.onMove(mouse);
+          showInfo(element);
+        }
       }, false);
       
       canvas.addEventListener('mousedown', function(e) {
@@ -216,7 +219,6 @@ var editor = (function() {
         mouse.isDown = false;
         mouse.isCtrl = false;
         var element = mechanism.handlers.onUp(mouse);
-        showInfo(element);
       }, false);
       
       var keyCodes = {
@@ -269,11 +271,15 @@ var editor = (function() {
           var id = b.GetUserData();
           if (b.IsActive() && typeof id !== 'undefined' && id != null
               && id > -1) {
-            mechanism.getElement(id).update(box2d.get.bodySpec(b));
+            var e =mechanism.elements.get(id); 
+            if (e)
+            e.update(box2d.get.bodySpec(b));
+            else
+              var x=0;
           }
         }
-        if (mechanism.isNew()) {
-          dashboard.currentState.value = mechanism.save();
+        if (mechanism.state.isNew()) {
+          dashboard.currentState.value = mechanism.state.save();
         }
       },
       draw : function() {
@@ -282,7 +288,7 @@ var editor = (function() {
         } else {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-        mechanism.draw();
+        mechanism.elements.draw();
       },
       setSimulate : function(go) {
         if (go) {

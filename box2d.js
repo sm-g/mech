@@ -17,9 +17,9 @@ var box2d = (function() {
     addToWorld : function(shape) {
       var bodyDef = this.create.bodyDef(shape);
       
-      if (shape instanceof mechanism.Point) {
+      if (shape instanceof mechanism.elements.Point) {
         fixDef.shape = new b2CircleShape(shape.radius);
-      } else if (shape instanceof mechanism.Edge) {
+      } else if (shape instanceof mechanism.elements.Edge) {
         fixDef.shape = new b2PolygonShape;
         // ребро в виде узкого ромба
         var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2,
@@ -58,17 +58,17 @@ var box2d = (function() {
          *          ребро и точка.
          */
         filter.ShouldCollide = function(fixtureA, fixtureB) {
-          var e1 = mechanism.getElement(fixtureA.GetBody().GetUserData());
-          var e2 = mechanism.getElement(fixtureB.GetBody().GetUserData());
+          var e1 = mechanism.elements.get(fixtureA.GetBody().GetUserData());
+          var e2 = mechanism.elements.get(fixtureB.GetBody().GetUserData());
           
-          if (e1 instanceof mechanism.Edge) {
+          if (e1 instanceof mechanism.elements.Edge) {
             var edge = e1;
-            if (e2 instanceof mechanism.Point) {
+            if (e2 instanceof mechanism.elements.Point) {
               var point = e2;
             }
-          } else if (e2 instanceof mechanism.Edge) {
+          } else if (e2 instanceof mechanism.elements.Edge) {
             var edge = e2;
-            if (e1 instanceof mechanism.Point) {
+            if (e1 instanceof mechanism.elements.Point) {
               var point = e1;
             }
           }
