@@ -725,7 +725,6 @@ var mechanism = (function() {
                 // опущенной к ребру
                 var d = helpers.distToHeight(element.p1, element.p2,
                     mouseOnDown, mouse) || 0;
-                
                 // увеличиваем, если слева от нормали к ребру
                 var normal = helpers.normalFrom(element.p1, element.p2,
                     mouseOnDown);
@@ -912,15 +911,11 @@ var mechanism = (function() {
           }
           
           for (i in elementsDefs) {
-            if (elementsDefs[i][0] == '') {
-              // пропускаем пустые строки
-              continue;
-            }
             if (lastId < +elementsDefs[i][0]) {
               lastId = +elementsDefs[i][0];
             }
+            // сначала добавляем точки и группы
             if (elementsDefs[i][1] == 'p') {
-              // сначала добавляем точки
               // [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3),
               // this.type,
               // edgesStr]
@@ -930,10 +925,7 @@ var mechanism = (function() {
                 x : +pDef[2],
                 y : +pDef[3]
               }).setType(pDef[4]);
-            }
-          }
-          for (i in elementsDefs) {
-            if (elementsDefs[i][1] == 'g') {
+            } else if (elementsDefs[i][1] == 'g') {
               // добавляем группы
               // [this.id, 'g', edgesStr]
               new Group({
