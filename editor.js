@@ -138,7 +138,7 @@ var editor = (function () {
       box2d.set.collideFilter(mechanism.get.collideFilter);
 
       this.callbacks();
-
+      mechanism.set.labels(true);
       loop.process();
     },
     callbacks: function () {
@@ -168,12 +168,12 @@ var editor = (function () {
         mechanism.state.load(dashboard.currentState.value);
       }, false);
 
-      controls.labels.addEventListener('click', function (e) {
-        mechanism.set.labels(e.target.checked);
+      controls.labels.addEventListener('click', function () {
+        mechanism.set.labels(controls.labels.checked);
       }, false);
 
-      controls.debug.addEventListener('click', function (e) {
-        debug = e.target.checked;
+      controls.debug.addEventListener('click', function () {
+        debug = controls.debug.checked;
         box2d.set.debug(debug);
       }, false);
 
