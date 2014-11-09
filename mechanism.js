@@ -8,7 +8,7 @@
  */
 var mechanism = (function () {
   "use strict";
-  var ctx, scale;
+  var ctx, scale, canvas;
   var isNewState = false,
     drawLabels = false,
     canMove = true;
@@ -171,6 +171,7 @@ var mechanism = (function () {
     // точка перемещается, потеряв связи с другими точками
     this.isFlying = false;
   };
+
   Point.prototype = Object.create(Element.prototype);
   Point.prototype.toString = function () {
     var edgesStr = idsOf(this.edges.filter(function (edge) {
@@ -180,6 +181,11 @@ var mechanism = (function () {
                 edgesStr].join();
   };
   Point.prototype.setPosition = function (x, y) {
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x > canvas.width / scale) x = canvas.width / scale;
+    if (y > canvas.height / scale) y = canvas.height / scale;
+
     this.x = x;
     this.y = y;
     this.body.SetPosition(new b2Vec2(x, y));
@@ -857,8 +863,7 @@ var mechanism = (function () {
                 var normal = helpers.normalFrom(element.p1, element.p2,
                   mouseOnDown);
                 var left = helpers.isLeft(mouseOnDown, normal, mouse);
-                console.log(d);
-                console.log(left);
+                console.log('diff: ' + d.toFixed(3) + ' left ' + left);
                 element.setLenght(left ? d : -d);
               }
             }
@@ -964,9 +969,12 @@ var mechanism = (function () {
       /**
        * Устанавливает масштаб рисования.
        */
-      scale: function (scl) {
-        scale = scl;
+      scale: function (newScale) {
+        scale = newScale;
       },
+      canvas: function (newCanvas) {
+        canvas = newCanvas;
+      }
     },
     elements: {
       /**

@@ -131,10 +131,10 @@ var editor = (function () {
 
       mechanism.set.context(ctx);
       mechanism.set.scale(scale);
+      mechanism.set.canvas(canvas);
 
       box2d.create.world(ctx, scale);
       box2d.create.defaultFixture();
-      box2d.set.canvas(canvas);
       box2d.set.collideFilter(mechanism.get.collideFilter);
 
       this.callbacks();

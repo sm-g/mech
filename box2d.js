@@ -5,7 +5,7 @@
 
 var box2d = (function () {
   "use strict";
-  var fixDef, world, scale, ctx, canvas;
+  var fixDef, world, scale, ctx;
 
   return {
     /**
@@ -168,9 +168,6 @@ var box2d = (function () {
       scale: function (newScale) {
         scale = newScale;
       },
-      canvas: function (newCanvas) {
-        canvas = newCanvas;
-      },
       collideFilter: function (filterFunction) {
         var filter = new b2ContactFilter();
         filter.ShouldCollide = function (fixtureA, fixtureB) {
@@ -194,24 +191,6 @@ var box2d = (function () {
         } else {
           world.SetDebugDraw(null);
         }
-      }
-    },
-    isValid: {
-      /**
-       * @param val
-       * @returns Допустимость x координаты в мире.
-       *
-       * @memberOf isValid
-       */
-      x: function (val) {
-        return val >= 0 && val <= canvas.width / scale;
-      },
-      /**
-       * @param val
-       * @returns Допустимость y координаты в мире.
-       */
-      y: function (val) {
-        return val >= 0 && val <= canvas.height / scale;
       }
     }
   };
