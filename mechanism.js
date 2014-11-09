@@ -40,7 +40,8 @@ var mechanism = (function () {
     back: '#fff',
     labels: '#05f',
     shadow: '#fff',
-    group: '#bbb'
+    group: '#bbb',
+    invisible: 'yellow'
   };
 
   /**
@@ -79,8 +80,8 @@ var mechanism = (function () {
    */
   var Element = function (options) {
     Shape.apply(this, arguments);
-    this.body = options.body || null;
-    this.isActive = options.isActive || false; // mouse down and move
+    this.body = options.body;
+    this.isActive = false; // mouse down and move
 
     elements.push(this);
     isNewState = true;
@@ -149,11 +150,12 @@ var mechanism = (function () {
   };
 
   Element.prototype.destroy = function () {
+    console.info("destroy " + this);
+
     box2d.get.world().DestroyBody(this.body);
 
     this.unselect();
     elements = _.without(elements, this);
-
     isNewState = true;
   };
 
@@ -171,9 +173,9 @@ var mechanism = (function () {
   };
   Point.prototype = Object.create(Element.prototype);
   Point.prototype.toString = function () {
-    var edgesStr = this.edges.map(function (edge) {
-      return edge.id;
-    }).join();
+    var edgesStr = idsOf(this.edges.filter(function (edge) {
+      return !edge.invisible;
+    })).join();
     return [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3), this.type,
                 edgesStr].join();
   };
@@ -185,6 +187,7 @@ var mechanism = (function () {
   };
   /**
    * Меняет тип точки
+   * @param type {pointTypes}
    */
   Point.prototype.setType = function (type) {
     var toJoin, i;
@@ -210,24 +213,115 @@ var mechanism = (function () {
   };
 
   var connectedPoints = [],
-    edgesCopy = [];
+    groupFlyInfo = [];
 
   /**
-   * Убирает ребра точки. Удаляет рёбра, сохраняя точки, с которыми они
-   * соединены.
+   * Начинает полет точки.
    */
   Point.prototype.beginFlying = function () {
     this.isFlying = true;
+    var i, k;
+
     connectedPoints = [];
-    edgesCopy = this.edges.slice();
-    this.edges = [];
+    groupFlyInfo = [];
+    var edgesGrouped = _.groupBy(this.edges, "gr");
+
+
+    for (i in edgesGrouped) {
+      var realEdgesOfGr = edgesGrouped[i].filter(function (e) {
+        return !e.invisible;
+      });
+
+      console.log('realEdgesOfGr ' + idsOf(realEdgesOfGr));
+
+      if (realEdgesOfGr.length > 1) {
+        // если два ребра с одной группой - это звено с несколькими ребрами, надо сохранить группу
+        var group = realEdgesOfGr[0].gr;
+
+        // точки соединенных ребер, которые входят в группу
+        var points = [];
+        for (k in realEdgesOfGr) {
+          points.push(realEdgesOfGr[k].getPointOtherThan(this));
+        }
+        console.log('points ' + idsOf(points));
+
+        // реальные ребра группы кроме тех,
+        // которые соединены с полетевшей точкой
+        var edges = [];
+        var grRealEdges = group.getRealEdges();
+        for (k in grRealEdges) {
+          if (!_.contains(realEdgesOfGr, grRealEdges[k]))
+            edges.push(grRealEdges[k]);
+        }
+        console.log('edges ' + idsOf(edges));
+
+        // сохраняем ребра и точки для восстановления группы
+        groupFlyInfo.push({
+          edges: edges,
+          points: points
+        });
+      }
+      for (k in realEdgesOfGr) {
+        // сохраняем точки реальных ребер
+        connectedPoints.push(realEdgesOfGr[k].getPointOtherThan(this));
+        // удаляем ребро
+        realEdgesOfGr[k].destroy();
+      }
+    }
   };
   /**
-   * Восстанавливает убранные рёбра.
+   * Завершает полет точки.
    */
   Point.prototype.endFlying = function () {
     this.isFlying = false;
-    this.edges = edgesCopy;
+    //    var i;
+    //    // восстанавливаем ребра
+    //    // создаем ребра, каждое в своей группе
+    //    var edgesByPoint = {};
+    //    for (i in connectedPoints) {
+    //      var newEdge = createEdge({
+    //        p1: this,
+    //        p2: connectedPoints[i]
+    //      });
+    //      edgesByPoint[connectedPoints[i].id] = newEdge;
+    //    }
+    //    // восстанавливаем группы
+    //    // добавляем созданные ребра в группы
+    //    for (i in groupFlyInfo) {
+    //      var gr = new Group(groupFlyInfo[i].edges);
+    //      console.info('/add from endFLy');
+    //      for (var k in groupFlyInfo[i].points) {
+    //        gr.add(edgesByPoint[groupFlyInfo[i].points[k].id]);
+    //      }
+    //      console.info('\\add from endFLy');
+    //
+    //      triangulate(gr.getPoints(), gr);
+    //    }
+    //    
+    // восстанавливаем группы
+    // добавляем созданные ребра в группы
+    for (i in groupFlyInfo) {
+      var gr = new Group(groupFlyInfo[i].edges);
+      console.info('/add from endFLy');
+      for (var k in groupFlyInfo[i].points) {
+        var newEdge = createEdge({
+          p1: this,
+          p2: groupFlyInfo[i].points[k],
+          gr: gr
+        });
+        gr.add(newEdge);
+      }
+      console.info('\\add from endFLy');
+
+      triangulate(gr.getPoints(), gr);
+    }
+    // восстанавливаем одиночные ребра 
+    for (i in connectedPoints) {
+      newEdge = createEdge({ // может быть создано выше
+        p1: this,
+        p2: connectedPoints[i]
+      });
+    }
   };
   /**
    * Уничтожаем точку и все её ребра.
@@ -304,25 +398,39 @@ var mechanism = (function () {
     this.p2 = options.p2;
     this.p1.edges.push(this);
     this.p2.edges.push(this);
+    var gr = options.gr || new Group();
+    console.info('add from ctor e ' + this.id + ' to gr ' + gr.id);
 
-    options.gr.add(this);
+    gr.add(this);
+
     this.invisible = options.invisible || false;
+    console.info('create ' + this);
+
   };
   Edge.prototype = Object.create(Element.prototype);
   Edge.prototype.toString = function () {
     return [this.id, 'e', this.p1.id, this.p2.id, this.gr.id].join();
   };
   Edge.prototype.width = 0.2;
+  Edge.prototype.select = function () {
+    if (!this.invisible)
+      Element.prototype.select.call(this);
+  };
   /**
    * Удаляет себя из концевых точек.
    */
   Edge.prototype.removeFromPoints = function () {
-    var index = this.p1.edges.indexOf(this);
-    this.p1.edges.splice(index, 1);
-
-    index = this.p2.edges.indexOf(this);
-    this.p2.edges.splice(index, 1);
+    this.p1.edges = _.without(this.p1.edges, this);
+    this.p2.edges = _.without(this.p2.edges, this);
   };
+
+  Edge.prototype.getPointOtherThan = function (p) {
+    if (this.p1 == p)
+      return this.p2;
+    else
+      return this.p1;
+  };
+
   Edge.prototype.getLength = function () {
     var pp = new paper.Point(this.p1.x - this.p2.x, this.p1.y - this.p2.y);
     return pp.length;
@@ -332,13 +440,12 @@ var mechanism = (function () {
    */
   Edge.prototype.destroy = function () {
     Element.prototype.destroy.call(this);
-
     this.removeFromPoints();
-    // remove from gr
-    var index = this.gr.edges.indexOf(this);
-    this.gr.edges.splice(index, 1);
 
-    this.gr.destroy();
+    // уничтожаем группу ребра
+    var gr = this.gr;
+    gr.remove(this);
+    gr.destroy();
   };
   Edge.prototype.draw = function () {
     // if (this.invisible)
@@ -354,6 +461,8 @@ var mechanism = (function () {
 
     if (this.isSelected()) {
       ctx.strokeStyle = colors.active;
+    } else if (this.invisible) {
+      ctx.strokeStyle = colors.invisible;
     } else {
       ctx.strokeStyle = colors.defaults;
     }
@@ -383,9 +492,19 @@ var mechanism = (function () {
    * @memberOf mechanism
    */
   var Group = function (options) {
-    this.id = options.id || helpers.counter();
+    this.id = (options && options.id) || helpers.counter();
     this.edges = [];
     grs.push(this);
+    if (options instanceof Array) {
+      console.info('/adds from Group ctor');
+
+      for (var i in options) {
+        this.add(options[i]);
+      }
+      console.info('\\adds from Group ctor');
+
+    }
+    console.info('create ' + this);
   };
   /**
    * Возвращает ребра жесткости звена.
@@ -397,18 +516,33 @@ var mechanism = (function () {
       return e.invisible;
     });
   };
-
+  /**
+   * Возвращает реальные ребра звена.
+   *
+   * @returns
+   */
+  Group.prototype.getRealEdges = function () {
+    return _.filter(this.edges, function (e) {
+      return !e.invisible;
+    });
+  };
   /**
    * Добавляет ребро к группе.
    *
    * @param edge
    */
   Group.prototype.add = function (edge) {
-    if (edge.gr == this)
+    console.log('add e ' + edge.id + ' to gr ' + this.id);
+
+    if (edge.gr == this) {
+      console.log('edge.gr == this');
       return;
+    }
     // ребро было в группе — меняем группу
-    if (edge.gr)
+    if (edge.gr) {
+      //  console.log(edge.id, 'gr = ', this.id);
       edge.gr.remove(edge);
+    }
     edge.gr = this;
 
     if (!_.contains(this.edges, edge))
@@ -420,6 +554,8 @@ var mechanism = (function () {
    * @param edge
    */
   Group.prototype.remove = function (edge) {
+    console.log('remove e ' + edge.id + ' from gr ' + this.id);
+
     this.edges = _.without(this.edges, edge);
     edge.gr = null;
 
@@ -428,9 +564,7 @@ var mechanism = (function () {
   };
 
   Group.prototype.toString = function () {
-    var edgesStr = this.edges.map(function (edge) {
-      return edge.id;
-    }).join();
+    var edgesStr = idsOf(this.getRealEdges()).join();
     return [this.id, 'g', edgesStr].join();
   };
 
@@ -449,25 +583,35 @@ var mechanism = (function () {
     var res = [];
     _.each(this.edges, function (e) {
       res.push(e.p1);
+      res.push(e.p2);
     });
-    return res;
+    return _.sortBy(_.unique(res), "id");
   };
 
   /**
-   * Удаляем спец-ребра, каждое ребро группы помещаем в новую группу.
+   *
    */
   Group.prototype.destroy = function () {
+    if (this.inDestroy) return;
+
+    console.info("destroy " + this);
+
+    this.inDestroy = true;
+
+    // Удаляем спец-ребра
     var stiffs = this.getStiffEdges();
+    console.info('invis ' + stiffs);
     for (var i in stiffs) {
       stiffs[i].destroy();
     }
+    // каждое ребро в новую группу
     var l = this.edges.length;
     while (l--) {
       var e = this.edges[l];
-      if (!e.invisible) {
-        var g = new Group({});
-        g.add(e);
-      }
+
+      console.assert(!e.invisible);
+
+      var g = new Group([e]);
     }
 
     grs = _.without(grs, this);
@@ -491,6 +635,13 @@ var mechanism = (function () {
     ctx.fill();
     ctx.restore();
   };
+
+  var idsOf = function (entities) {
+    return entities.map(function (e) {
+      return e.id;
+    });
+  };
+
   /**
    * @memberOf mechanism
    */
@@ -505,7 +656,7 @@ var mechanism = (function () {
   var getEdges = function () {
     return elements.filter(function (e) {
       return e.isEdge();
-    })
+    });
   };
 
   var getEntities = function () {
@@ -570,7 +721,7 @@ var mechanism = (function () {
     }
 
     // Создаем группу
-    var gr0 = new Group({});
+    var gr0 = new Group();
 
     // соединяем точки в контур
     for (i = 1; i < points.length; i++) {
@@ -592,6 +743,7 @@ var mechanism = (function () {
   /**
    * Разбивает выпуклый многоугольник на треугольники спец-ребрами.
    *
+   * @param points
    * @memberOf mechanism
    */
   var triangulate = function (points, gr) {
@@ -672,7 +824,7 @@ var mechanism = (function () {
             if (point.isSelected() && !point.isActive) {
               // снимаем выделение
               point.unselect();
-              // show last sel
+              // show last selected
               return selectedElements[selectedElements.length - 1];
             } else {
               point.isActive = false;
@@ -688,7 +840,7 @@ var mechanism = (function () {
       /**
        * Обрабатывает событие click.
        *
-       * @return newPoint or null
+       * @return newPoint or undefined
        */
       onClick: function (mouse) {
         if (canMove && !currentBody) {
@@ -733,6 +885,8 @@ var mechanism = (function () {
                 var normal = helpers.normalFrom(element.p1, element.p2,
                   mouseOnDown);
                 var left = helpers.isLeft(mouseOnDown, normal, mouse);
+                console.log(d);
+                console.log(left);
                 element.setLenght(left ? d : -d);
               }
             }
@@ -851,7 +1005,7 @@ var mechanism = (function () {
       draw: function () {
         var i;
         if (debug)
-          ctx.globalAlpha = 0.5
+          ctx.globalAlpha = 0.5;
 
         for (i in grs) {
           grs[i].draw();
@@ -996,7 +1150,9 @@ var mechanism = (function () {
        */
       save: function () {
         var str = '';
-        var sorted = _.sortBy(getEntities(), "id");
+        var sorted = _.sortBy(getEntities().filter(function (e) {
+          return !e.invisible;
+        }), "id");
         for (var i in sorted) {
           str += sorted[i].toString() + '\n';
         }
