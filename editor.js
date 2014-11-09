@@ -138,25 +138,43 @@ var editor = (function () {
       box2d.set.collideFilter(mechanism.get.collideFilter);
 
       this.callbacks();
-      mechanism.set.labels(true);
+
+      controls.labels.click();
+      controls.debug.click();
+
+      controls.stop.disabled = true;
+      controls.pause.disabled = true;
+
       loop.process();
     },
     callbacks: function () {
       var canvasPosition = helpers.getElementPosition(canvas);
 
       controls.play.addEventListener('click', function (e) {
+        controls.play.disabled = true;
+        controls.pause.disabled = false;
+        controls.stop.disabled = false;
+
         box2d.get.world().paused = false;
         mechanism.simulation.start();
         loop.setSimulate(true);
       }, false);
 
       controls.pause.addEventListener('click', function (e) {
+        controls.pause.disabled = true;
+        controls.play.disabled = false;
+        controls.stop.disabled = false;
+
         box2d.get.world().paused = true;
         mechanism.simulation.pause();
         loop.setSimulate(false);
       }, false);
 
       controls.stop.addEventListener('click', function (e) {
+        controls.stop.disabled = true;
+        controls.pause.disabled = true;
+        controls.play.disabled = false;
+
         box2d.get.world().paused = true;
         mechanism.simulation.stop();
         loop.setSimulate(false);
