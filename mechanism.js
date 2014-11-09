@@ -87,14 +87,7 @@ var mechanism = (function () {
   };
 
   Element.prototype = Object.create(Shape.prototype);
-  Element.prototype.destroy = function () {
-    box2d.get.world().DestroyBody(this.body);
 
-    this.unselect();
-    elements = _.without(elements, this);
-
-    isNewState = true;
-  };
   Element.prototype.getColorBySelection = function () {
     if (this.isSelected()) {
       return colors.active;
@@ -115,10 +108,10 @@ var mechanism = (function () {
   };
 
   Element.prototype.isPoint = function () {
-    return isPoint(this);
+    return this instanceof Point;
   };
   Element.prototype.isEdge = function () {
-    return isEdge(this);
+    return this instanceof Edge;
   };
   /**
    * Соединяет два элемента шарнирной связью.
@@ -154,6 +147,16 @@ var mechanism = (function () {
     }
     return bodiesToJoin;
   };
+
+  Element.prototype.destroy = function () {
+    box2d.get.world().DestroyBody(this.body);
+
+    this.unselect();
+    elements = _.without(elements, this);
+
+    isNewState = true;
+  };
+
   /**
    * @memberOf mechanism
    */
@@ -172,7 +175,7 @@ var mechanism = (function () {
       return edge.id;
     }).join();
     return [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3), this.type,
-            edgesStr].join();
+                edgesStr].join();
   };
   Point.prototype.setPosition = function (x, y) {
     this.x = x;
@@ -241,9 +244,9 @@ var mechanism = (function () {
     var y = this.y * scale;
 
     ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(this.angle);
-    ctx.translate(-x, -y);
+    //      ctx.translate(x, y);
+    //      ctx.rotate(this.angle);
+    //      ctx.translate(-x, -y);
 
     // опорная точка - рисуем треугольник
     if (this.type == pointTypes.fixed || this.type == pointTypes.clockwiseFixed) {
@@ -281,6 +284,7 @@ var mechanism = (function () {
       ctx.arc(x, y, this.radius * scale + 3, 0, Math.PI * 1.5, false);
       ctx.stroke();
     }
+
 
     if (drawLabels) {
       ctx.fillStyle = colors.labels;
@@ -344,6 +348,10 @@ var mechanism = (function () {
     var y = this.y * scale;
     ctx.save();
 
+    //      ctx.translate(x, y);
+    //      ctx.rotate(this.angle);
+    //      ctx.translate(-x, -y);
+
     if (this.isSelected()) {
       ctx.strokeStyle = colors.active;
     } else {
@@ -356,7 +364,6 @@ var mechanism = (function () {
     ctx.moveTo(this.p1.x * scale, this.p1.y * scale);
     ctx.lineTo(this.p2.x * scale, this.p2.y * scale);
     ctx.stroke();
-    ctx.restore();
 
     if (drawLabels) {
       ctx.fillStyle = colors.labels;
@@ -391,25 +398,6 @@ var mechanism = (function () {
     });
   };
 
-  /**
-   * Удаляем спец-ребра, каждое ребро группы помещаем в новую группу.
-   */
-  Group.prototype.destroy = function () {
-    var stiffs = this.getStiffEdges();
-    for (var i in stiffs) {
-      stiffs[i].destroy();
-    }
-    var l = this.edges.length;
-    while (l--) {
-      var e = this.edges[l];
-      if (!e.invisible) {
-        var g = new Group({});
-        g.add(e);
-      }
-    }
-
-    grs = _.without(grs, this);
-  };
   /**
    * Добавляет ребро к группе.
    *
@@ -465,6 +453,26 @@ var mechanism = (function () {
     return res;
   };
 
+  /**
+   * Удаляем спец-ребра, каждое ребро группы помещаем в новую группу.
+   */
+  Group.prototype.destroy = function () {
+    var stiffs = this.getStiffEdges();
+    for (var i in stiffs) {
+      stiffs[i].destroy();
+    }
+    var l = this.edges.length;
+    while (l--) {
+      var e = this.edges[l];
+      if (!e.invisible) {
+        var g = new Group({});
+        g.add(e);
+      }
+    }
+
+    grs = _.without(grs, this);
+  };
+
   Group.prototype.draw = function () {
     ctx.save();
 
@@ -482,36 +490,25 @@ var mechanism = (function () {
     });
     ctx.fill();
     ctx.restore();
-
-    ctx.restore();
-  };
-
-  /**
-   * @memberOf mechanism
-   */
-  var isPoint = function (element) {
-    return element instanceof Point;
-  };
-  /**
-   * @memberOf mechanism
-   */
-  var isEdge = function (element) {
-    return element instanceof Edge;
   };
   /**
    * @memberOf mechanism
    */
   var getPoints = function () {
-    return elements.filter(isPoint);
+    return elements.filter(function (e) {
+      return e.isPoint();
+    });
   };
   /**
    * @memberOf mechanism
    */
   var getEdges = function () {
-    return elements.filter(isEdge);
+    return elements.filter(function (e) {
+      return e.isEdge();
+    })
   };
 
-  var getWithId = function () {
+  var getEntities = function () {
     return _.union(elements, grs);
   };
   /**
@@ -760,7 +757,9 @@ var mechanism = (function () {
       },
       onAKeyUp: function () {
         if (canMove) {
-          connectPoints(selectedElements.filter(isPoint));
+          connectPoints(selectedElements.filter(function (e) {
+            return e.isPoint;
+          }));
         }
       }
     },
@@ -852,7 +851,8 @@ var mechanism = (function () {
       draw: function () {
         var i;
         if (debug)
-          return;
+          ctx.globalAlpha = 0.5
+
         for (i in grs) {
           grs[i].draw();
         }
@@ -996,7 +996,7 @@ var mechanism = (function () {
        */
       save: function () {
         var str = '';
-        var sorted = _.sortBy(getWithId(), "id");
+        var sorted = _.sortBy(getEntities(), "id");
         for (var i in sorted) {
           str += sorted[i].toString() + '\n';
         }

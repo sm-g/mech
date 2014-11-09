@@ -184,8 +184,9 @@ var box2d = (function () {
       debug: function (debug) {
         if (debug) {
           var debugDraw = new b2DebugDraw();
+          var diffScale = scale - 5 > 0 ? scale - 5 : scale + 5;
           debugDraw.SetSprite(ctx);
-          debugDraw.SetDrawScale(scale || 1);
+          debugDraw.SetDrawScale(diffScale);
           debugDraw.SetFillAlpha(0.5);
           debugDraw.SetLineThickness(1.0);
           debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
