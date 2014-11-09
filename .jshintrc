@@ -1,0 +1,26 @@
+{
+  "globals": {
+    "laxbreak": true,
+    "laxcomma": true,
+    "browser": true,
+
+    "_": false,
+    "paper": false,
+
+    "b2Vec2": false,
+    "b2AABB": false,
+    "b2BodyDef": false,
+    "b2Body": false,
+    "b2FixtureDef": false,
+    "b2World": false,
+    "b2ContactFilter": false,
+    "b2MassData": false,
+    "b2PolygonShape": false,
+    "b2CircleShape": false,
+    "b2DebugDraw": false,
+    "b2MouseJointDef": false,
+    "b2RevoluteJointDef": false,
+
+    "debug": true
+  }
+}

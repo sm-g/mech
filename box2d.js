@@ -1,101 +1,68 @@
+/*global helpers, Box2D */
 /**
  * @author smg
  */
-var b2Vec2 = Box2D.Common.Math.b2Vec2, b2AABB = Box2D.Collision.b2AABB, b2BodyDef = Box2D.Dynamics.b2BodyDef, b2Body = Box2D.Dynamics.b2Body, b2FixtureDef = Box2D.Dynamics.b2FixtureDef, b2World = Box2D.Dynamics.b2World, b2ContactFilter = Box2D.Dynamics.b2ContactFilter, b2MassData = Box2D.Collision.Shapes.b2MassData, b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape, b2CircleShape = Box2D.Collision.Shapes.b2CircleShape, b2DebugDraw = Box2D.Dynamics.b2DebugDraw, b2MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef, b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
 
-var box2d = (function() {
-  var fixDef, world, scale, ctx;
-  
+var box2d = (function () {
+  "use strict";
+  var fixDef, world, scale, ctx, canvas;
+
   return {
     /**
      * Добавляет в мир тело для соответствующей фигуры.
-     * 
+     *
      * @memberOf box2d
      * @param shape
+     * @param type Точка (1) или ребро (2)
      * @returns Созданное тело.
      */
-    addToWorld : function(shape) {
+    addToWorld: function (shape, type) {
       var bodyDef = this.create.bodyDef(shape);
-      
-      if (shape instanceof mechanism.elements.Point) {
+      switch (type) {
+      case 1:
         fixDef.shape = new b2CircleShape(shape.radius);
-      } else if (shape instanceof mechanism.elements.Edge) {
-        fixDef.shape = new b2PolygonShape;
+        break;
+      case 2:
+      default:
+        fixDef.shape = new b2PolygonShape();
         // ребро в виде узкого ромба
-        var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2,
-            (shape.p1.y + shape.p2.y) / 2);
-        var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y
-            - shape.p2.y).normalize(shape.width);
+        var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2, (shape.p1.y + shape.p2.y) / 2);
+        var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y - shape.p2.y).normalize(shape.width);
         var pp1 = paperPoint.rotate(90);
         var pp2 = paperPoint.rotate(-90);
         fixDef.shape.SetAsArray([
-            new b2Vec2(shape.p1.x - middleP.x, shape.p1.y - middleP.y),
-            new b2Vec2(pp1.x, pp1.y),
-            new b2Vec2(shape.p2.x - middleP.x, shape.p2.y - middleP.y),
-            new b2Vec2(pp2.x, pp2.y) ]);
-        
+              new b2Vec2(shape.p1.x - middleP.x, shape.p1.y - middleP.y),
+              new b2Vec2(pp1.x, pp1.y),
+              new b2Vec2(shape.p2.x - middleP.x, shape.p2.y - middleP.y),
+              new b2Vec2(pp2.x, pp2.y)
+          ]);
+
         bodyDef.position.x = middleP.x;
         bodyDef.position.y = middleP.y;
+        break;
       }
-      ;
-      
+
       var body = world.CreateBody(bodyDef);
       body.CreateFixture(fixDef);
       return body;
     },
-    create : {
+    create: {
       /**
        * Создает мир.
-       * 
+       *
        * @memberOf create
        */
-      world : function(ctx, scale) {
+      world: function (ctx_, scale_) {
         world = new b2World(new b2Vec2(0, 0), false);
         world.paused = true;
-        var filter = new b2ContactFilter();
-        /**
-         * @returns Должны ли сталкиваться два fixture. Сталкиваются соединённые
-         *          ребро и точка.
-         */
-        filter.ShouldCollide = function(fixtureA, fixtureB) {
-          var e1 = mechanism.elements.get(fixtureA.GetBody().GetUserData());
-          var e2 = mechanism.elements.get(fixtureB.GetBody().GetUserData());
-          
-          if (e1 instanceof mechanism.elements.Edge) {
-            var edge = e1;
-            if (e2 instanceof mechanism.elements.Point) {
-              var point = e2;
-            }
-          } else if (e2 instanceof mechanism.elements.Edge) {
-            var edge = e2;
-            if (e1 instanceof mechanism.elements.Point) {
-              var point = e1;
-            }
-          }
-          if (point && edge) {
-            return point.edges.indexOf(edge) != -1;
-          }
-          
-          return false;
-        };
-        
-        world.SetContactFilter(filter);
-        
-        if (debug) {
-          var debugDraw = new b2DebugDraw();
-          debugDraw.SetSprite(ctx);
-          debugDraw.SetDrawScale(scale || 1);
-          debugDraw.SetFillAlpha(0.5);
-          debugDraw.SetLineThickness(1.0);
-          debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
-          world.SetDebugDraw(debugDraw);
-        }
+        ctx = ctx_;
+        scale = scale_;
       },
       /**
        * Настраивает физику тел по умолчанию.
        */
-      defaultFixture : function() {
-        fixDef = new b2FixtureDef;
+      defaultFixture: function () {
+        fixDef = new b2FixtureDef();
         fixDef.density = 5.0;
         // плотность
         fixDef.friction = 0;
@@ -105,12 +72,12 @@ var box2d = (function() {
       },
       /**
        * Создает body definition для фигуры.
-       * 
+       *
        * @param shape
        * @returns body definition
        */
-      bodyDef : function(shape) {
-        var bodyDef = new b2BodyDef;
+      bodyDef: function (shape) {
+        var bodyDef = new b2BodyDef();
         if (shape.isStatic) {
           bodyDef.type = b2Body.b2_staticBody;
         } else {
@@ -120,26 +87,26 @@ var box2d = (function() {
         bodyDef.position.y = shape.y;
         bodyDef.userData = shape.id;
         bodyDef.angle = shape.angle;
-        
+
         return bodyDef;
       }
     },
-    get : {
+    get: {
       /**
        * @param b
        * @returns Параметры тела: координаты, угол, центр, id-элемента
        * @memberOf get
        */
-      bodySpec : function(b) {
+      bodySpec: function (b) {
         return {
-          x : b.GetPosition().x,
-          y : b.GetPosition().y,
-          angle : b.GetAngle(),
-          center : {
-            x : b.GetWorldCenter().x,
-            y : b.GetWorldCenter().y
+          x: b.GetPosition().x,
+          y: b.GetPosition().y,
+          angle: b.GetAngle(),
+          center: {
+            x: b.GetWorldCenter().x,
+            y: b.GetWorldCenter().y
           },
-          elementId : b.GetUserData()
+          elementId: b.GetUserData()
         };
       },
       /**
@@ -147,12 +114,11 @@ var box2d = (function() {
        *          Флаг поиска только нестатических тел.
        * @returns Тело, на которое указывает мышь.
        */
-      bodyAtMouse : function(mouse, dynamicOnly) {
-        var getBodyCB = function(fixture) {
-          if (!dynamicOnly
-              || fixture.GetBody().GetType() != b2Body.b2_staticBody) {
+      bodyAtMouse: function (mouse, dynamicOnly) {
+        var getBodyCB = function (fixture) {
+          if (!dynamicOnly || fixture.GetBody().GetType() != b2Body.b2_staticBody) {
             if (fixture.GetShape().TestPoint(fixture.GetBody().GetTransform(),
-                mousePVec)) {
+              mousePVec)) {
               selectedBody = fixture.GetBody();
               return false;
             }
@@ -167,24 +133,24 @@ var box2d = (function() {
         world.QueryAABB(getBodyCB, aabb);
         return selectedBody;
       },
-      motorSpeed : function() {
+      motorSpeed: function () {
         return 2000;
       },
-      maxMotorTorque : function() {
+      maxMotorTorque: function () {
         return 2000;
       },
-      world : function() {
+      world: function () {
         return world;
       }
     },
-    refresh : {
+    refresh: {
       /**
        * Обновляет тип тела для элемента.
-       * 
+       *
        * @param element
        * @memberOf refresh
        */
-      bodyType : function(element) {
+      bodyType: function (element) {
         var body = element.body;
         if (element.isStatic) {
           body.SetType(b2Body.b2_staticBody);
@@ -192,32 +158,58 @@ var box2d = (function() {
           body.SetType(b2Body.b2_dynamicBody);
         }
       },
-    
+
     },
-    set : {
+    set: {
       /**
-       * 
+       *
        * @memberOf set
        */
-      scale : function(newScale) {
+      scale: function (newScale) {
         scale = newScale;
+      },
+      canvas: function (newCanvas) {
+        canvas = newCanvas;
+      },
+      collideFilter: function (filterFunction) {
+        var filter = new b2ContactFilter();
+        filter.ShouldCollide = function (fixtureA, fixtureB) {
+          var id1 = fixtureA.GetBody().GetUserData();
+          var id2 = fixtureB.GetBody().GetUserData();
+          return filterFunction(id1, id2);
+        };
+
+        world.SetContactFilter(filter);
+      },
+      debug: function (debug) {
+        if (debug) {
+          var debugDraw = new b2DebugDraw();
+          debugDraw.SetSprite(ctx);
+          debugDraw.SetDrawScale(scale || 1);
+          debugDraw.SetFillAlpha(0.5);
+          debugDraw.SetLineThickness(1.0);
+          debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
+          world.SetDebugDraw(debugDraw);
+        } else {
+          world.SetDebugDraw(null);
+        }
       }
     },
-    isValid : {
+    isValid: {
       /**
        * @param val
        * @returns Допустимость x координаты в мире.
-       * 
+       *
        * @memberOf isValid
        */
-      x : function(val) {
+      x: function (val) {
         return val >= 0 && val <= canvas.width / scale;
       },
       /**
        * @param val
        * @returns Допустимость y координаты в мире.
        */
-      y : function(val) {
+      y: function (val) {
         return val >= 0 && val <= canvas.height / scale;
       }
     }
