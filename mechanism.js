@@ -41,7 +41,7 @@ var mechanism = (function () {
     labels: '#05f',
     shadow: '#fff',
     group: '#bbb',
-    invisible: 'yellow'
+    invisible: '#bbb'
   };
 
   /**
@@ -694,7 +694,7 @@ var mechanism = (function () {
 
     // Создаем группу
     var gr0 = new Group();
-
+    points = _.sortBy(points, "id");
     // соединяем точки в контур
     for (i = 1; i < points.length; i++) {
       createEdge({
