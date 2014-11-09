@@ -213,7 +213,7 @@ var mechanism = (function () {
   };
 
   var connectedPoints = [],
-    groupFlyInfo = [];
+    grRestoreInfo = [];
 
   /**
    * Начинает полет точки.
@@ -223,16 +223,14 @@ var mechanism = (function () {
     var i, k;
 
     connectedPoints = [];
-    groupFlyInfo = [];
+    grRestoreInfo = [];
     var edgesGrouped = _.groupBy(this.edges, "gr");
 
 
     for (i in edgesGrouped) {
-      var realEdgesOfGr = edgesGrouped[i].filter(function (e) {
-        return !e.invisible;
-      });
+      var realEdgesOfGr = edgesGrouped[i].filter(Edge.prototype.isRealFilter);
 
-      console.log('realEdgesOfGr ' + idsOf(realEdgesOfGr));
+      console.log('begin flying \nrealEdgesOfGr ' + idsOf(realEdgesOfGr));
 
       if (realEdgesOfGr.length > 1) {
         // если два ребра с одной группой - это звено с несколькими ребрами, надо сохранить группу
@@ -256,7 +254,7 @@ var mechanism = (function () {
         console.log('edges ' + idsOf(edges));
 
         // сохраняем ребра и точки для восстановления группы
-        groupFlyInfo.push({
+        grRestoreInfo.push({
           edges: edges,
           points: points
         });
@@ -274,44 +272,22 @@ var mechanism = (function () {
    */
   Point.prototype.endFlying = function () {
     this.isFlying = false;
-    //    var i;
-    //    // восстанавливаем ребра
-    //    // создаем ребра, каждое в своей группе
-    //    var edgesByPoint = {};
-    //    for (i in connectedPoints) {
-    //      var newEdge = createEdge({
-    //        p1: this,
-    //        p2: connectedPoints[i]
-    //      });
-    //      edgesByPoint[connectedPoints[i].id] = newEdge;
-    //    }
-    //    // восстанавливаем группы
-    //    // добавляем созданные ребра в группы
-    //    for (i in groupFlyInfo) {
-    //      var gr = new Group(groupFlyInfo[i].edges);
-    //      console.info('/add from endFLy');
-    //      for (var k in groupFlyInfo[i].points) {
-    //        gr.add(edgesByPoint[groupFlyInfo[i].points[k].id]);
-    //      }
-    //      console.info('\\add from endFLy');
-    //
-    //      triangulate(gr.getPoints(), gr);
-    //    }
-    //    
+    var i, newEdge;
+
     // восстанавливаем группы
     // добавляем созданные ребра в группы
-    for (i in groupFlyInfo) {
-      var gr = new Group(groupFlyInfo[i].edges);
-      console.info('/add from endFLy');
-      for (var k in groupFlyInfo[i].points) {
-        var newEdge = createEdge({
+    for (i in grRestoreInfo) {
+      var gr = new Group(grRestoreInfo[i].edges);
+      console.info('/add from endFlying');
+      for (var k in grRestoreInfo[i].points) {
+        newEdge = createEdge({
           p1: this,
-          p2: groupFlyInfo[i].points[k],
+          p2: grRestoreInfo[i].points[k],
           gr: gr
         });
         gr.add(newEdge);
       }
-      console.info('\\add from endFLy');
+      console.info('\\add from endFlying');
 
       triangulate(gr.getPoints(), gr);
     }
@@ -416,6 +392,9 @@ var mechanism = (function () {
     if (!this.invisible)
       Element.prototype.select.call(this);
   };
+  Edge.prototype.isRealFilter = function (e) {
+    return !e.invisible;
+  };
   /**
    * Удаляет себя из концевых точек.
    */
@@ -448,9 +427,6 @@ var mechanism = (function () {
     gr.destroy();
   };
   Edge.prototype.draw = function () {
-    // if (this.invisible)
-    // return;
-
     var x = this.x * scale;
     var y = this.y * scale;
     ctx.save();
@@ -522,9 +498,7 @@ var mechanism = (function () {
    * @returns
    */
   Group.prototype.getRealEdges = function () {
-    return _.filter(this.edges, function (e) {
-      return !e.invisible;
-    });
+    return _.filter(this.edges, Edge.prototype.isRealFilter);
   };
   /**
    * Добавляет ребро к группе.
@@ -604,13 +578,11 @@ var mechanism = (function () {
     for (var i in stiffs) {
       stiffs[i].destroy();
     }
-    // каждое ребро в новую группу
+    // каждое реальное ребро в новую группу
     var l = this.edges.length;
     while (l--) {
       var e = this.edges[l];
-
       console.assert(!e.invisible);
-
       var g = new Group([e]);
     }
 
@@ -1150,9 +1122,7 @@ var mechanism = (function () {
        */
       save: function () {
         var str = '';
-        var sorted = _.sortBy(getEntities().filter(function (e) {
-          return !e.invisible;
-        }), "id");
+        var sorted = _.sortBy(getEntities().filter(Edge.prototype.isRealFilter), "id");
         for (var i in sorted) {
           str += sorted[i].toString() + '\n';
         }
