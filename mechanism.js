@@ -8,10 +8,11 @@
  */
 var mechanism = (function () {
   "use strict";
-  var ctx, scale, canvas;
+  var ctx, scale, canvas, loop;
   var isNewState = false,
     drawLabels = false,
     canMove = true;
+  var adorners = [];
   var elements = [],
     selectedElements = [],
     grs = [];
@@ -51,13 +52,12 @@ var mechanism = (function () {
    * @constructor
    */
   var Shape = function (options) {
-    // автоинкремент
-    this.id = options.id || helpers.counter();
+    this.id = options.id || helpers.counter(); // автоинкремент
     this.x = options.x || 0;
     this.y = options.y || 0;
     this.angle = options.angle || 0;
     this.color = helpers.randomColor();
-    this.center = {
+    this.center = { // центр масс, для симметричных тел совпадает с x,y
       x: null,
       y: null
     };
@@ -376,22 +376,33 @@ var mechanism = (function () {
    */
   var Edge = function (options) {
     Element.apply(this, arguments);
+
+
     this.p1 = options.p1;
     this.p2 = options.p2;
     this.p1.edges.push(this);
     this.p2.edges.push(this);
+    this.invisible = options.invisible || false;
+
+    var middle = helpers.middle(this.p1, this.p2);
+    this.x = middle.x;
+    this.y = middle.y;
+
     var gr = options.gr || new Group();
     console.info('add from ctor e ' + this.id + ' to gr ' + gr.id);
-
     gr.add(this);
 
-    this.invisible = options.invisible || false;
-    console.info('create ' + this);
-
+    console.info('created ' + this);
   };
   Edge.prototype = Object.create(Element.prototype);
   Edge.prototype.toString = function () {
     return [this.id, 'e', this.p1.id, this.p2.id, this.gr.id].join();
+  };
+  Edge.prototype.getMiddle = function () {
+    return {
+      x: this.x,
+      y: this.y
+    };
   };
   Edge.prototype.width = 0.2;
   Edge.prototype.select = function () {
@@ -419,6 +430,24 @@ var mechanism = (function () {
   Edge.prototype.getLength = function () {
     var pp = new paper.Point(this.p1.x - this.p2.x, this.p1.y - this.p2.y);
     return pp.length;
+  };
+
+  /**
+   * Меняет длину ребра, двигая точки вдоль оси.
+   */
+  Edge.prototype.setLenght = function (dL) {
+    var newp1 = helpers.movePointAlongLine(this.p1, this.p2, -dL);
+    var newp2 = helpers.movePointAlongLine(this.p2, this.p1, -dL);
+    console.log(helpers.logP(this.p1, 'p1') + helpers.logP(newp1, ' -> '));
+    console.log(helpers.logP(this.p2, 'p2') + helpers.logP(newp2, ' -> '));
+    loop.setSimulate(true);
+    box2d.get.world().paused = false;
+    this.p1.setPosition(newp1.x, newp1.y);
+    this.p2.setPosition(newp2.x, newp2.y);
+    box2d.get.world().paused = true;
+    loop.setSimulate(false);
+
+
   };
   /**
    * Уничтожает ребро.
@@ -467,7 +496,32 @@ var mechanism = (function () {
 
     ctx.restore();
   };
+  /**
+   * Рисует линию между точками
+   * @param {Object} p1 Первая точка или массив в двух точек
+   * @param {Object} p2 Вторая точка
+   */
+  var drawLine = function (p1, p2) {
+    if (p1 instanceof Array) {
+      p2 = p1[1];
+      p1 = p1[0];
+    }
+    var x1 = p1.x * scale;
+    var y1 = p1.y * scale;
+    var x2 = p2.x * scale;
+    var y2 = p2.y * scale;
 
+    ctx.save();
+    ctx.strokeStyle = colors.active;
+
+    ctx.lineWidth = scale / 5 | 0;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    ctx.restore();
+  };
   /**
    * Группа ребер — звено.
    *
@@ -613,7 +667,9 @@ var mechanism = (function () {
     ctx.fill();
     ctx.restore();
   };
-
+  /**
+   * @memberOf mechanism
+   */
   var idsOf = function (entities) {
     return entities.map(function (e) {
       return e.id;
@@ -636,7 +692,9 @@ var mechanism = (function () {
       return e.isEdge();
     });
   };
-
+  /**
+   * @memberOf mechanism
+   */
   var getEntities = function () {
     return _.union(elements, grs);
   };
@@ -797,8 +855,9 @@ var mechanism = (function () {
        */
       onUp: function (mouse) {
         if (canMove && currentBody) {
-          var point = getElementOfBody(currentBody);
-          if (point && point.isPoint()) {
+          var element = getElementOfBody(currentBody);
+          if (element.isPoint()) {
+            var point = element;
             if (point.isSelected() && !point.isActive) {
               // снимаем выделение
               point.unselect();
@@ -810,9 +869,31 @@ var mechanism = (function () {
                 // восстанавливаем ребра
                 point.endFlying();
               }
-              return point;
             }
           }
+          if (element.isEdge()) {
+            var edge = element;
+            if (mouse.x != mouseOnDown.x || mouse.y != mouseOnDown.y) {
+              // изменение длины ребра - расстоние между наклонной и высотой,
+              // опущенной к ребру
+              var diff = helpers.distToHeight(edge.p1, edge.p2,
+                mouseOnDown, mouse);
+
+              var normalFromDown = helpers.normalFrom(edge.p1, edge.p2,
+                mouseOnDown);
+              adorners = [];
+              adorners.push([mouseOnDown, normalFromDown]); // рисуем нормаль
+
+              var middle = edge.getMiddle();
+              var goesInner = helpers.onOneSide(mouseOnDown, normalFromDown, mouse, middle);
+              console.log('diff: ' + diff.toFixed(3));
+              console.log('goesInner: ' + goesInner);
+              edge.setLenght(goesInner ? -diff : diff);
+            }
+
+          }
+
+          return element;
         }
       },
       /**
@@ -853,23 +934,11 @@ var mechanism = (function () {
               // двигаем точку
               element.setPosition(mouse.x, mouse.y);
             }
-            if (element.isEdge()) {
-              if (mouse.x != mouseOnDown.x || mouse.y != mouseOnDown.y) {
-                // изменение длины ребра - расстоние между наклонной и высотой,
-                // опущенной к ребру
-                var d = helpers.distToHeight(element.p1, element.p2,
-                  mouseOnDown, mouse) || 0;
-                // увеличиваем, если слева от нормали к ребру
-                var normal = helpers.normalFrom(element.p1, element.p2,
-                  mouseOnDown);
-                var left = helpers.isLeft(mouseOnDown, normal, mouse);
-                console.log('diff: ' + d.toFixed(3) + ' left ' + left);
-                element.setLenght(left ? d : -d);
-              }
-            }
+
             element.isActive = true;
             return element;
           }
+
         }
       },
       /**
@@ -974,6 +1043,9 @@ var mechanism = (function () {
       },
       canvas: function (newCanvas) {
         canvas = newCanvas;
+      },
+      loop: function (l) {
+        loop = l;
       }
     },
     elements: {
@@ -998,7 +1070,9 @@ var mechanism = (function () {
         for (i in points) {
           points[i].draw();
         }
-
+        for (i in adorners) {
+          drawLine(adorners[i]);
+        }
       },
 
       Point: Point,
@@ -1008,8 +1082,6 @@ var mechanism = (function () {
        * @returns элемент с указанным id.
        */
       get: function (id) {
-        if (id == 1)
-          var x = 0;
         return _.findWhere(elements, {
           id: id
         });

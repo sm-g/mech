@@ -132,6 +132,7 @@ var editor = (function () {
       mechanism.set.context(ctx);
       mechanism.set.scale(scale);
       mechanism.set.canvas(canvas);
+      mechanism.set.loop(loop);
 
       box2d.create.world(ctx, scale);
       box2d.create.defaultFixture();
@@ -301,8 +302,6 @@ var editor = (function () {
             var e = mechanism.elements.get(id);
             if (e)
               e.update(box2d.get.bodySpec(b));
-            else
-              var x = 0;
           }
         }
         if (mechanism.state.isNew()) {

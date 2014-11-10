@@ -12,33 +12,31 @@ var box2d = (function () {
      * Добавляет в мир тело для соответствующей фигуры.
      *
      * @memberOf box2d
-     * @param shape
+     * @param element
      * @param type Точка (1) или ребро (2)
      * @returns Созданное тело.
      */
-    addToWorld: function (shape, type) {
-      var bodyDef = this.create.bodyDef(shape);
+    addToWorld: function (element, type) {
+      var bodyDef = this.create.bodyDef(element);
       switch (type) {
-      case 1:
-        fixDef.shape = new b2CircleShape(shape.radius);
+      case 1: // точка
+        fixDef.shape = new b2CircleShape(element.radius);
         break;
-      case 2:
+      case 2: // ребро в виде узкого ромба
       default:
         fixDef.shape = new b2PolygonShape();
-        // ребро в виде узкого ромба
-        var middleP = new paper.Point((shape.p1.x + shape.p2.x) / 2, (shape.p1.y + shape.p2.y) / 2);
-        var paperPoint = new paper.Point(shape.p1.x - shape.p2.x, shape.p1.y - shape.p2.y).normalize(shape.width);
+        var paperPoint = new paper.Point(element.p1.x - element.p2.x, element.p1.y - element.p2.y).normalize(element.width);
         var pp1 = paperPoint.rotate(90);
         var pp2 = paperPoint.rotate(-90);
         fixDef.shape.SetAsArray([
-              new b2Vec2(shape.p1.x - middleP.x, shape.p1.y - middleP.y),
+              new b2Vec2(element.p1.x - element.x, element.p1.y - element.y),
               new b2Vec2(pp1.x, pp1.y),
-              new b2Vec2(shape.p2.x - middleP.x, shape.p2.y - middleP.y),
+              new b2Vec2(element.p2.x - element.x, element.p2.y - element.y),
               new b2Vec2(pp2.x, pp2.y)
           ]);
 
-        bodyDef.position.x = middleP.x;
-        bodyDef.position.y = middleP.y;
+        bodyDef.position.x = element.x;
+        bodyDef.position.y = element.y;
         break;
       }
 
