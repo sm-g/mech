@@ -144,9 +144,16 @@ var editor = (function () {
       controls.debug.click();
 
       controls.stop.disabled = true;
-      controls.pause.disabled = true;
-
+      controls.pause.disabled = true;      
+      
+      box2d.get.world().paused = false;
+      loop.setSimulate(true);
+      
+      
       loop.process();
+      var save = "1,p,22.667,7.467,2,9,12\n2,p,28.733,7.000,2,6,12\n3,p,21.933,3.600,2,9\n4,p,29.600,2.400,2,6\n5,g,6\n6,e,4,2,5\n9,e,1,3,10\n10,g,9\n11,g,12\n12,e,2,1,11";
+      mechanism.state.load(save);
+      controls.play.click();
     },
     callbacks: function () {
       var canvasPosition = helpers.getElementPosition(canvas);
@@ -158,9 +165,7 @@ var editor = (function () {
         controls.pause.disabled = false;
         controls.stop.disabled = false;
 
-        box2d.get.world().paused = false;
         mechanism.simulation.start();
-        loop.setSimulate(true);
       }, false);
 
       controls.pause.addEventListener('click', function (e) {
@@ -168,9 +173,7 @@ var editor = (function () {
         controls.play.disabled = false;
         controls.stop.disabled = false;
 
-        box2d.get.world().paused = true;
         mechanism.simulation.pause();
-        loop.setSimulate(false);
       }, false);
 
       controls.stop.addEventListener('click', function (e) {
@@ -178,10 +181,7 @@ var editor = (function () {
         controls.pause.disabled = true;
         controls.play.disabled = false;
 
-        box2d.get.world().paused = true;
         mechanism.simulation.stop();
-        loop.setSimulate(false);
-
         mechanism.state.reload();
       }, false);
 

@@ -13,7 +13,8 @@ var mechanism = (function () {
     drawLabels = false,
     canSelect = true,
     canAdd = true,
-    canMove = true;
+    canMove = true,
+    paused = false;
   var adorners = [];
   var elements = [],
     selectedElements = [],
@@ -28,7 +29,7 @@ var mechanism = (function () {
    */
   var pointTypes = {
     fixed: 0,
-    clockwiseFixed: 1,
+    clockwise: 1,
     joint: 2
   };
 
@@ -94,6 +95,11 @@ var mechanism = (function () {
 
   Element.prototype = Object.create(Shape.prototype);
 
+  Element.prototype.stop = function () {
+    if (this.body) {
+      this.body.SetLinearVelocity(new b2Vec2(0, 0));
+    }
+  };
   Element.prototype.getColorBySelection = function () {
     if (this.isSelected()) {
       return colors.active;
@@ -197,25 +203,24 @@ var mechanism = (function () {
     isNewState = true;
   };
   /**
+   * Соединяет тела с мотором или без
+   * @param {Boolean} motor
+   */
+  Point.prototype.rejoin = function (motor) {
+    var toJoin = this.removeJoints();
+    for (var i in toJoin) {
+      toJoin[i].a.join(toJoin[i].b, motor);
+    }
+  };
+  /**
    * Меняет тип точки
-   *
-   * @param type
-   *          {pointTypes}
    */
   Point.prototype.setType = function (type) {
-    var toJoin, i;
     if (type != this.type) {
-      if (type == pointTypes.clockwiseFixed) {
-        toJoin = this.removeJoints();
-        for (i in toJoin) {
-          toJoin[i].a.join(toJoin[i].b, true);
-        }
-      } else if (this.type == pointTypes.clockwiseFixed) {
-        toJoin = this.removeJoints();
-        this.body.SetAngle(0);
-        for (i in toJoin) {
-          toJoin[i].a.join(toJoin[i].b, false);
-        }
+      if (type == pointTypes.clockwise) {
+        this.rejoin(!paused); // на паузе без моторов
+      } else if (!paused && this.type == pointTypes.clockwise) {
+        this.rejoin(false);
       }
 
       this.type = type;
@@ -224,7 +229,19 @@ var mechanism = (function () {
       isNewState = true;
     }
   };
-
+  /**
+   * Меняет моторы при смене режима паузы
+   * @param {Boolean} paused
+   */
+  Point.prototype.onPaused = function (paused) {
+    if (this.type == pointTypes.clockwise) {
+      if (paused) {
+        this.rejoin(false);
+      } else {
+        this.rejoin(true);
+      }
+    }
+  };
   /**
    * Начинает полет точки.
    */
@@ -330,7 +347,7 @@ var mechanism = (function () {
     // ctx.translate(-x, -y);
 
     // опорная точка - рисуем треугольник
-    if (this.type == pointTypes.fixed || this.type == pointTypes.clockwiseFixed) {
+    if (this.isStatic) {
       ctx.strokeStyle = this.getColorBySelection();
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -358,7 +375,7 @@ var mechanism = (function () {
     ctx.fill();
 
     // точка вращается - рисуем дугу
-    if (this.type == pointTypes.clockwiseFixed) {
+    if (this.type == pointTypes.clockwise) {
       ctx.strokeStyle = this.getColorBySelection();
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -393,7 +410,6 @@ var mechanism = (function () {
     var gr = options.gr || new Group();
     console.info('add from ctor e ' + this.id + ' to gr ' + gr.id);
     gr.add(this);
-
     console.info('created ' + this);
   };
   Edge.prototype = Object.create(Element.prototype);
@@ -472,6 +488,11 @@ var mechanism = (function () {
     newEdge.select();
     console.info('\\add from correct');
     currentBody = newEdge.body;
+
+    if (paused) {
+      p1.stop();
+      p2.stop();
+    }
   };
 
   Edge.prototype.setLenght = function (l) {
@@ -762,8 +783,8 @@ var mechanism = (function () {
     var body = box2d.addToWorld(edge, 2);
     edge.body = body;
 
-    edge.join(options.p1, options.p1.type == pointTypes.clockwiseFixed);
-    edge.join(options.p2, options.p2.type == pointTypes.clockwiseFixed);
+    edge.join(options.p1, options.p1.type == pointTypes.clockwise);
+    edge.join(options.p2, options.p2.type == pointTypes.clockwise);
     return edge;
   };
   /**
@@ -1141,6 +1162,11 @@ var mechanism = (function () {
         canSelect = true;
         canAdd = false;
         canMove = false;
+        paused = false;
+        var points = getPoints();
+        for (var i in points) {
+          points[i].onPaused(paused);
+        }
       },
       /**
        * Приостанавливает симуляцию.
@@ -1149,17 +1175,21 @@ var mechanism = (function () {
         canSelect = true;
         canAdd = true;
         canMove = true;
+        paused = true;
+
+        var i, points = getPoints();
+        for (i in points) {
+          points[i].onPaused(paused);
+        }
+        for (i in elements) {
+          elements[i].stop();
+        }
       },
       /**
-       * Останавливает симуляцию, сбрасывает позиции элементов.
+       * Останавливает симуляцию.
        */
       stop: function () {
-        canSelect = true;
-        canAdd = true;
-        canMove = true;
-        for (var i in elements) {
-          elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
-        }
+        mechanism.simulation.pause();
       }
     },
     state: {

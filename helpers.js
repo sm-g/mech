@@ -117,8 +117,8 @@ var helpers = (function () {
     distToHeight: function (a, b, s, e) {
       var distStartEnd = dist2(s, e);
       var distEndSegm = distToSegmentSquared(e, a, b);
-      console.info(['start-end:'+distStartEnd.toFixed(4), 'end-segm:'+distEndSegm.toFixed(4)].join());
-      if (distEndSegm > distStartEnd){
+      console.info(['start-end:' + distStartEnd.toFixed(4), 'end-segm:' + distEndSegm.toFixed(4)].join());
+      if (distEndSegm > distStartEnd) {
         console.warn('!');
         return 0;
       }
