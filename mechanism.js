@@ -1,4 +1,4 @@
-/*global box2d, helpers */
+/* global box2d, helpers */
 /**
  * @author smg
  */
@@ -17,7 +17,9 @@ var mechanism = (function () {
     selectedElements = [],
     grs = [];
   var currentBody, mouseOnDown;
-  var origEdgePoints = [];
+  var origEdgePoints = [],
+    connectedPoints = [],
+    grRestoreInfo = [];
 
   /**
    * @memberOf mechanism
@@ -179,7 +181,7 @@ var mechanism = (function () {
       return !edge.invisible;
     })).join();
     return [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3), this.type,
-                edgesStr].join();
+        edgesStr].join();
   };
   Point.prototype.setPosition = function (x, y) {
     if (x < 0) x = 0;
@@ -194,7 +196,9 @@ var mechanism = (function () {
   };
   /**
    * Меняет тип точки
-   * @param type {pointTypes}
+   *
+   * @param type
+   *          {pointTypes}
    */
   Point.prototype.setType = function (type) {
     var toJoin, i;
@@ -219,9 +223,6 @@ var mechanism = (function () {
     }
   };
 
-  var connectedPoints = [],
-    grRestoreInfo = [];
-
   /**
    * Начинает полет точки.
    */
@@ -232,7 +233,6 @@ var mechanism = (function () {
     connectedPoints = [];
     grRestoreInfo = [];
     var edgesGrouped = _.groupBy(this.edges, "gr");
-
 
     for (i in edgesGrouped) {
       var realEdgesOfGr = edgesGrouped[i].filter(Edge.prototype.isRealFilter);
@@ -298,7 +298,7 @@ var mechanism = (function () {
 
       triangulate(gr.getPoints(), gr);
     }
-    // восстанавливаем одиночные ребра 
+    // восстанавливаем одиночные ребра
     for (i in connectedPoints) {
       newEdge = createEdge({ // может быть создано выше
         p1: this,
@@ -321,9 +321,9 @@ var mechanism = (function () {
     var y = this.y * scale;
 
     ctx.save();
-    //      ctx.translate(x, y);
-    //      ctx.rotate(this.angle);
-    //      ctx.translate(-x, -y);
+    // ctx.translate(x, y);
+    // ctx.rotate(this.angle);
+    // ctx.translate(-x, -y);
 
     // опорная точка - рисуем треугольник
     if (this.type == pointTypes.fixed || this.type == pointTypes.clockwiseFixed) {
@@ -361,7 +361,6 @@ var mechanism = (function () {
       ctx.arc(x, y, this.radius * scale + 3, 0, Math.PI * 1.5, false);
       ctx.stroke();
     }
-
 
     if (drawLabels) {
       ctx.fillStyle = colors.labels;
@@ -435,25 +434,31 @@ var mechanism = (function () {
    * Меняет длину ребра, двигая точки вдоль оси.
    */
   Edge.prototype.correctLenght = function (originalPoints, dL) {
-    if (!isNaN(originalPoints)){
-      dL = (-this.getLength() + originalPoints)/2;
-      originalPoints = [_.clone(this.p1), _.clone(this.p2)];
-    }
-    var newp1 = helpers.movePointAlongLine(originalPoints[0], originalPoints[1], -dL);
-    var newp2 = helpers.movePointAlongLine(originalPoints[1], originalPoints[0], -dL);
+    if (this.invisible)
+      return;
+
+    var newp1 = helpers.movePointAlongLine(originalPoints[0],
+      originalPoints[1], -dL);
+    var newp2 = helpers.movePointAlongLine(originalPoints[1],
+      originalPoints[0], -dL);
     console.log(helpers.logP(this.p1, 'p1') + helpers.logP(newp1, ' -> '));
     console.log(helpers.logP(this.p2, 'p2') + helpers.logP(newp2, ' -> '));
-    loop.setSimulate(true);
-    box2d.get.world().paused = false;
-    this.p1.setPosition(newp1.x, newp1.y);
-    this.p2.setPosition(newp2.x, newp2.y);
-    box2d.get.world().paused = true;
-    loop.setSimulate(false);
+    // loop.setSimulate(true);
+    // box2d.get.world().paused = false;
+    // this.destroy();
+    // createEdge({p1:newp1,p2:newp2});
+    // this.p1.setPosition(newp1.x, newp1.y);
+    // this.p2.setPosition(newp2.x, newp2.y);
+    // box2d.get.world().paused = true;
+    // loop.setSimulate(false);
   };
-  
+
   Edge.prototype.setLenght = function (l) {
-     var dL = (-this.getLength() + points)/2;
-    var  points = [_.clone(this.p1), _.clone(this.p2)];
+    if (this.invisible)
+      return;
+
+    var dL = (-this.getLength() + points) / 2;
+    var points = [_.clone(this.p1), _.clone(this.p2)];
     this.correctLenght(points, dL);
   };
   /**
@@ -473,16 +478,13 @@ var mechanism = (function () {
     var y = this.y * scale;
     ctx.save();
 
-    //      ctx.translate(x, y);
-    //      ctx.rotate(this.angle);
-    //      ctx.translate(-x, -y);
-
-    if (this.isSelected()) {
-      ctx.strokeStyle = colors.active;
-    } else if (this.invisible) {
+    // ctx.translate(x, y);
+    // ctx.rotate(this.angle);
+    // ctx.translate(-x, -y);
+    if (this.invisible) {
       ctx.strokeStyle = colors.invisible;
     } else {
-      ctx.strokeStyle = colors.defaults;
+      ctx.strokeStyle = this.getColorBySelection();
     }
 
     ctx.lineWidth = scale / 2 | 0;
@@ -581,7 +583,7 @@ var mechanism = (function () {
     }
     // ребро было в группе — меняем группу
     if (edge.gr) {
-      //  console.log(edge.id, 'gr = ', this.id);
+      // console.log(edge.id, 'gr = ', this.id);
       edge.gr.remove(edge);
     }
     edge.gr = this;
@@ -633,7 +635,8 @@ var mechanism = (function () {
    *
    */
   Group.prototype.destroy = function () {
-    if (this.inDestroy) return;
+    if (this.inDestroy)
+      return;
 
     console.info("destroy " + this);
 
@@ -822,14 +825,7 @@ var mechanism = (function () {
         return p1.edges[i];
     }
   };
-  /**
-   * Убирает выделение со всех элементов.
-   *
-   * @memberOf mechanism
-   */
-  var unselectAll = function () {
-    selectedElements = [];
-  };
+
   return {
     handlers: {
       /**
@@ -844,7 +840,7 @@ var mechanism = (function () {
           var element = getElementOfBody(currentBody);
           if (element && !element.isSelected()) {
             if (!mouse.isCtrl) {
-              unselectAll();
+              selectedElements = [];
             }
             if (element.isEdge()) {
               origEdgePoints = [_.clone(element.p1), _.clone(element.p2)];
@@ -872,7 +868,7 @@ var mechanism = (function () {
               // снимаем выделение
               point.unselect();
               // show last selected
-              return selectedElements[selectedElements.length - 1];
+              return _.last(selectedElements);
             } else {
               point.isActive = false;
               if (point.isFlying) {
@@ -892,18 +888,16 @@ var mechanism = (function () {
        */
       onClick: function (mouse) {
         if (canMove && !currentBody) {
+          selectedElements = [];
+
+          // была выделена 0 или 1 точка - добавляем точку
           if (selectedElements.length < 2) {
-            unselectAll();
             var newPoint = createPoint({
               x: mouse.x,
               y: mouse.y
             });
             newPoint.select();
             return newPoint;
-          } else {
-            // просто снимаем выделение, если было выделено более 1
-            // элемента
-            unselectAll();
           }
         }
       },
@@ -959,7 +953,7 @@ var mechanism = (function () {
             if (copy[i])
               copy[i].destroy();
           }
-          unselectAll();
+          selectedElements = [];
         }
       },
       onAKeyUp: function () {
@@ -1108,7 +1102,7 @@ var mechanism = (function () {
       },
       select: function (id) {
         var element = mechanism.elements.get(id);
-        unselectAll();
+        selectedElements = [];
         if (element) {
           element.select();
         }
@@ -1154,7 +1148,6 @@ var mechanism = (function () {
        * Удаляет все элементы.
        */
       clear: function () {
-        unselectAll();
         var points = getPoints();
         for (var i in points) {
           points[i].destroy();
