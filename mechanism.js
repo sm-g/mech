@@ -11,6 +11,8 @@ var mechanism = (function () {
   var ctx, scale, canvas, loop;
   var isNewState = false,
     drawLabels = false,
+    canSelect = true,
+    canAdd = true,
     canMove = true;
   var adorners = [];
   var elements = [],
@@ -292,12 +294,13 @@ var mechanism = (function () {
           p2: grRestoreInfo[i].points[k],
           gr: gr
         });
-        gr.add(newEdge);
       }
       console.info('\\add from endFlying');
 
       triangulate(gr.getPoints(), gr);
     }
+    grRestoreInfo = [];
+
     // восстанавливаем одиночные ребра
     for (i in connectedPoints) {
       newEdge = createEdge({ // может быть создано выше
@@ -305,6 +308,7 @@ var mechanism = (function () {
         p2: connectedPoints[i]
       });
     }
+    connectedPoints = [];
   };
   /**
    * Уничтожаем точку и все её ребра.
@@ -429,36 +433,53 @@ var mechanism = (function () {
     var pp = new paper.Point(this.p1.x - this.p2.x, this.p1.y - this.p2.y);
     return pp.length;
   };
-
+  Edge.prototype.getPointsCopy = function () {
+    return [{
+      x: this.p1.x,
+      y: this.p1.y
+    }, {
+      x: this.p2.x,
+      y: this.p2.y
+    }];
+  };
   /**
    * Меняет длину ребра, двигая точки вдоль оси.
    */
   Edge.prototype.correctLenght = function (originalPoints, dL) {
     if (this.invisible)
       return;
-
-    var newp1 = helpers.movePointAlongLine(originalPoints[0],
-      originalPoints[1], -dL);
-    var newp2 = helpers.movePointAlongLine(originalPoints[1],
-      originalPoints[0], -dL);
+    //    grRestoreInfo = [{
+    var grEdges = _.without(this.gr.getRealEdges(), this);
+    console.log('edges ' + idsOf(grEdges));
+    //    }];
+    var p2 = this.p2;
+    var p1 = this.p1;
+    var newp1 = helpers.movePointAlongLine(originalPoints[0], originalPoints[1], -dL);
+    var newp2 = helpers.movePointAlongLine(originalPoints[1], originalPoints[0], -dL);
     console.log(helpers.logP(this.p1, 'p1') + helpers.logP(newp1, ' -> '));
     console.log(helpers.logP(this.p2, 'p2') + helpers.logP(newp2, ' -> '));
-    // loop.setSimulate(true);
-    // box2d.get.world().paused = false;
-    // this.destroy();
-    // createEdge({p1:newp1,p2:newp2});
-    // this.p1.setPosition(newp1.x, newp1.y);
-    // this.p2.setPosition(newp2.x, newp2.y);
-    // box2d.get.world().paused = true;
-    // loop.setSimulate(false);
+    this.destroy();
+    p1.setPosition(newp1.x, newp1.y);
+    p2.setPosition(newp2.x, newp2.y);
+
+    var gr = new Group(grEdges);
+    console.info('/add from correct');
+    var newEdge = createEdge({
+      p1: p1,
+      p2: p2,
+      gr: gr
+    });
+    newEdge.select();
+    console.info('\\add from correct');
+    currentBody = newEdge.body;
   };
 
   Edge.prototype.setLenght = function (l) {
     if (this.invisible)
       return;
 
-    var dL = (-this.getLength() + points) / 2;
-    var points = [_.clone(this.p1), _.clone(this.p2)];
+    var dL = (-this.getLength() + l) / 2;
+    var points = this.getPointsCopy();
     this.correctLenght(points, dL);
   };
   /**
@@ -836,14 +857,14 @@ var mechanism = (function () {
        */
       onDown: function (mouse) {
         currentBody = box2d.get.bodyAtMouse(mouse);
-        if (canMove && currentBody) {
+        if (canSelect && currentBody) {
           var element = getElementOfBody(currentBody);
           if (element && !element.isSelected()) {
             if (!mouse.isCtrl) {
               selectedElements = [];
             }
             if (element.isEdge()) {
-              origEdgePoints = [_.clone(element.p1), _.clone(element.p2)];
+              origEdgePoints = element.getPointsCopy();
               console.info("saved " + origEdgePoints);
             }
 
@@ -860,9 +881,9 @@ var mechanism = (function () {
        * @return element to show info
        */
       onUp: function (mouse) {
-        if (canMove && currentBody) {
+        if (canSelect && currentBody) {
           var element = getElementOfBody(currentBody);
-          if (element.isPoint()) {
+          if (element && element.isPoint()) {
             var point = element;
             if (point.isSelected() && !point.isActive) {
               // снимаем выделение
@@ -887,7 +908,7 @@ var mechanism = (function () {
        * @return newPoint or undefined
        */
       onClick: function (mouse) {
-        if (canMove && !currentBody) {
+        if (canAdd && !currentBody) { // не нашлось тела
           selectedElements = [];
 
           // была выделена 0 или 1 точка - добавляем точку
@@ -905,41 +926,42 @@ var mechanism = (function () {
        * Обрабатывает событие mousemove.
        */
       onMove: function (mouse) {
-        if (canMove && mouse.isDown) {
-          if (currentBody) {
-            var element = getElementOfBody(currentBody);
+        if (canMove && mouse.isDown && currentBody) {
+          var element = getElementOfBody(currentBody);
+          if (element) {
             if (element.isPoint()) {
               if (!mouse.isCtrl && !element.isFlying) {
                 element.beginFlying();
               }
-
               element.setPosition(mouse.x, mouse.y);
-            }
-            if (element.isEdge()) {
+            } else if (element.isEdge()) {
               var edge = element;
               if (mouse.x != mouseOnDown.x || mouse.y != mouseOnDown.y) {
                 // изменение длины ребра - расстоние между наклонной и высотой,
                 // опущенной к ребру
-                var diff = helpers.distToHeight(edge.p1, edge.p2,
-                  mouseOnDown, mouse);
+                if (origEdgePoints == [])
+                  console.warn("empty origEdgePoints");
+                else {
+                  var diff = helpers.distToHeight(origEdgePoints[0], origEdgePoints[1],
+                    mouseOnDown, mouse);
 
-                var normalFromDown = helpers.normalFrom(edge.p1, edge.p2,
-                  mouseOnDown);
-                adorners = [];
-                adorners.push([mouseOnDown, normalFromDown]); // рисуем нормаль
+                  var normalFromDown = helpers.normalFrom(edge.p1, edge.p2,
+                    mouseOnDown);
+                  adorners = [];
+                  adorners.push([mouseOnDown, normalFromDown]); // рисуем нормаль
 
-                var middle = edge.getMiddle();
-                var goesInner = helpers.onOneSide(mouseOnDown, normalFromDown, mouse, middle);
-                console.log('diff: ' + diff.toFixed(3));
-                console.log('goesInner: ' + goesInner);
-                edge.correctLenght(origEdgePoints, goesInner ? -diff : diff);
+                  var middle = edge.getMiddle();
+                  var goesInner = helpers.onOneSide(mouseOnDown, normalFromDown, mouse, middle);
+                  console.log('diff: ' + diff.toFixed(3));
+                  console.log('goesInner: ' + goesInner);
+                  edge.correctLenght(origEdgePoints, goesInner ? -diff : diff);
+                }
               }
             }
 
             element.isActive = true;
             return element;
           }
-
         }
       },
       /**
@@ -947,7 +969,7 @@ var mechanism = (function () {
        */
       onDelete: function () {
         // удаляем все выбранные элементы
-        if (canMove && selectedElements[0]) {
+        if (selectedElements[0]) {
           var copy = _.clone(selectedElements);
           for (var i in copy) {
             if (copy[i])
@@ -957,7 +979,7 @@ var mechanism = (function () {
         }
       },
       onAKeyUp: function () {
-        if (canMove) {
+        if (canAdd) {
           connectPoints(selectedElements.filter(function (e) {
             return e.isPoint;
           }));
@@ -1116,18 +1138,25 @@ var mechanism = (function () {
        * @memberOf simulation
        */
       start: function () {
-
+        canSelect = true;
+        canAdd = false;
+        canMove = false;
       },
       /**
        * Приостанавливает симуляцию.
        */
       pause: function () {
-
+        canSelect = true;
+        canAdd = true;
+        canMove = true;
       },
       /**
        * Останавливает симуляцию, сбрасывает позиции элементов.
        */
       stop: function () {
+        canSelect = true;
+        canAdd = true;
+        canMove = true;
         for (var i in elements) {
           elements[i].body.SetLinearVelocity(new b2Vec2(0, 0));
         }
@@ -1221,6 +1250,9 @@ var mechanism = (function () {
         }
 
         return str;
+      },
+      reload: function () {
+        mechanism.state.load(mechanism.state.save());
       }
     }
   };

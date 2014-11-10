@@ -182,7 +182,7 @@ var editor = (function () {
         mechanism.simulation.stop();
         loop.setSimulate(false);
 
-        mechanism.state.load(dashboard.currentState.value);
+        mechanism.state.reload();
       }, false);
 
       // other controls
