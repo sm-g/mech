@@ -233,13 +233,8 @@ var editor = (function () {
         mechanism.set.point('type', e.target.selectedIndex);
       }, false);
 
-      controls.scale.addEventListener('change', function (e) {
-        var val = +e.target.value;
-        if (val > 0 && val < 50) {
-          scale = val;
-          box2d.set.scale(val);
-          mechanism.set.scale(val);
-        }
+      dashboard.edgeLength.addEventListener('change', function (e) {
+        mechanism.set.edge('length', +e.target.value);
       }, false);
 
       // mouse

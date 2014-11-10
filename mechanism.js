@@ -17,6 +17,7 @@ var mechanism = (function () {
     selectedElements = [],
     grs = [];
   var currentBody, mouseOnDown;
+  var origEdgePoints = [];
 
   /**
    * @memberOf mechanism
@@ -376,8 +377,6 @@ var mechanism = (function () {
    */
   var Edge = function (options) {
     Element.apply(this, arguments);
-
-
     this.p1 = options.p1;
     this.p2 = options.p2;
     this.p1.edges.push(this);
@@ -435,9 +434,13 @@ var mechanism = (function () {
   /**
    * Меняет длину ребра, двигая точки вдоль оси.
    */
-  Edge.prototype.setLenght = function (dL) {
-    var newp1 = helpers.movePointAlongLine(this.p1, this.p2, -dL);
-    var newp2 = helpers.movePointAlongLine(this.p2, this.p1, -dL);
+  Edge.prototype.correctLenght = function (originalPoints, dL) {
+    if (!isNaN(originalPoints)){
+      dL = (-this.getLength() + originalPoints)/2;
+      originalPoints = [_.clone(this.p1), _.clone(this.p2)];
+    }
+    var newp1 = helpers.movePointAlongLine(originalPoints[0], originalPoints[1], -dL);
+    var newp2 = helpers.movePointAlongLine(originalPoints[1], originalPoints[0], -dL);
     console.log(helpers.logP(this.p1, 'p1') + helpers.logP(newp1, ' -> '));
     console.log(helpers.logP(this.p2, 'p2') + helpers.logP(newp2, ' -> '));
     loop.setSimulate(true);
@@ -446,8 +449,12 @@ var mechanism = (function () {
     this.p2.setPosition(newp2.x, newp2.y);
     box2d.get.world().paused = true;
     loop.setSimulate(false);
-
-
+  };
+  
+  Edge.prototype.setLenght = function (l) {
+     var dL = (-this.getLength() + points)/2;
+    var  points = [_.clone(this.p1), _.clone(this.p2)];
+    this.correctLenght(points, dL);
   };
   /**
    * Уничтожает ребро.
@@ -823,7 +830,6 @@ var mechanism = (function () {
   var unselectAll = function () {
     selectedElements = [];
   };
-
   return {
     handlers: {
       /**
@@ -839,6 +845,10 @@ var mechanism = (function () {
           if (element && !element.isSelected()) {
             if (!mouse.isCtrl) {
               unselectAll();
+            }
+            if (element.isEdge()) {
+              origEdgePoints = [_.clone(element.p1), _.clone(element.p2)];
+              console.info("saved " + origEdgePoints);
             }
 
             element.select();
@@ -871,28 +881,7 @@ var mechanism = (function () {
               }
             }
           }
-          if (element.isEdge()) {
-            var edge = element;
-            if (mouse.x != mouseOnDown.x || mouse.y != mouseOnDown.y) {
-              // изменение длины ребра - расстоние между наклонной и высотой,
-              // опущенной к ребру
-              var diff = helpers.distToHeight(edge.p1, edge.p2,
-                mouseOnDown, mouse);
-
-              var normalFromDown = helpers.normalFrom(edge.p1, edge.p2,
-                mouseOnDown);
-              adorners = [];
-              adorners.push([mouseOnDown, normalFromDown]); // рисуем нормаль
-
-              var middle = edge.getMiddle();
-              var goesInner = helpers.onOneSide(mouseOnDown, normalFromDown, mouse, middle);
-              console.log('diff: ' + diff.toFixed(3));
-              console.log('goesInner: ' + goesInner);
-              edge.setLenght(goesInner ? -diff : diff);
-            }
-
-          }
-
+          origEdgePoints = [];
           return element;
         }
       },
@@ -927,12 +916,30 @@ var mechanism = (function () {
             var element = getElementOfBody(currentBody);
             if (element.isPoint()) {
               if (!mouse.isCtrl && !element.isFlying) {
-                // убираем рёбра
                 element.beginFlying();
               }
 
-              // двигаем точку
               element.setPosition(mouse.x, mouse.y);
+            }
+            if (element.isEdge()) {
+              var edge = element;
+              if (mouse.x != mouseOnDown.x || mouse.y != mouseOnDown.y) {
+                // изменение длины ребра - расстоние между наклонной и высотой,
+                // опущенной к ребру
+                var diff = helpers.distToHeight(edge.p1, edge.p2,
+                  mouseOnDown, mouse);
+
+                var normalFromDown = helpers.normalFrom(edge.p1, edge.p2,
+                  mouseOnDown);
+                adorners = [];
+                adorners.push([mouseOnDown, normalFromDown]); // рисуем нормаль
+
+                var middle = edge.getMiddle();
+                var goesInner = helpers.onOneSide(mouseOnDown, normalFromDown, mouse, middle);
+                console.log('diff: ' + diff.toFixed(3));
+                console.log('goesInner: ' + goesInner);
+                edge.correctLenght(origEdgePoints, goesInner ? -diff : diff);
+              }
             }
 
             element.isActive = true;
@@ -1010,15 +1017,28 @@ var mechanism = (function () {
             } else {
               var newX = element.x,
                 newY = element.y;
-              if (what == 'x' && box2d.isValid.x(value)) {
+              if (what == 'x') {
                 newX = value;
-              } else if (what == 'y' && box2d.isValid.y(value)) {
+              } else if (what == 'y') {
                 newY = value;
               }
 
               element.beginFlying();
               element.setPosition(newX, newY);
               element.endFlying();
+            }
+          }
+        }
+      },
+      edge: function (what, value) {
+        var element = selectedElements.pop();
+        if (element) {
+          selectedElements.push(element);
+          if (element.isEdge()) {
+            if (what == 'length') {
+              if (value > 0) {
+                element.setLenght(value);
+              }
             }
           }
         }
