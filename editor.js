@@ -151,6 +151,8 @@ var editor = (function () {
     callbacks: function () {
       var canvasPosition = helpers.getElementPosition(canvas);
 
+      // simulator
+
       controls.play.addEventListener('click', function (e) {
         controls.play.disabled = true;
         controls.pause.disabled = false;
@@ -183,6 +185,8 @@ var editor = (function () {
         mechanism.state.load(dashboard.currentState.value);
       }, false);
 
+      // other controls
+
       controls.load.addEventListener('click', function (e) {
         mechanism.state.load(dashboard.currentState.value);
       }, false);
@@ -196,9 +200,25 @@ var editor = (function () {
         box2d.set.debug(debug);
       }, false);
 
+      controls.scale.addEventListener('change', function (e) {
+        var val = +e.target.value;
+        if (val > 0 && val < 50) {
+          scale = val;
+          box2d.set.scale(val);
+          mechanism.set.scale(val);
+        }
+      }, false);
+
+      // dashboard
+
       dashboard.elementId.addEventListener('input', function (e) {
-        var element = mechanism.elements.select(+e.target.value);
-        showInfo(element);
+
+        var element = mechanism.elements.get(+e.target.value);
+        if (element) // можно вводить длинный id
+        {
+          mechanism.elements.select(element.id);
+          showInfo(element);
+        }
       }, false);
 
       dashboard.pointX.addEventListener('input', function (e) {
@@ -221,6 +241,8 @@ var editor = (function () {
           mechanism.set.scale(val);
         }
       }, false);
+
+      // mouse
 
       canvas.addEventListener('click', function (e) {
         var newPoint = mechanism.handlers.onClick(mouse);
@@ -250,20 +272,23 @@ var editor = (function () {
         var element = mechanism.handlers.onUp(mouse);
       }, false);
 
+      // keyboard
+
       var keyCodes = {
         DEL: 46,
         A: 65
       };
 
       document.onkeyup = function key(e) {
-        switch (e.keyCode) {
-        case keyCodes.DEL:
-          mechanism.handlers.onDelete();
-          break;
-        case keyCodes.A:
-          mechanism.handlers.onAKeyUp();
-          break;
-        }
+        if (document.activeElement == document.getElementsByTagName('body')[0]) // otherwise serve input
+          switch (e.keyCode) {
+          case keyCodes.DEL:
+            mechanism.handlers.onDelete();
+            break;
+          case keyCodes.A:
+            mechanism.handlers.onAKeyUp();
+            break;
+          }
       };
     }
   };

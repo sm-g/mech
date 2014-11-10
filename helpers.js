@@ -101,7 +101,7 @@ var helpers = (function () {
     },
     /**
      * @see http://stackoverflow.com/a/1501725/3009578
-     * @returns Расстояние от точки w до отрезка, заданного точками a и b
+     * @returns Расстояние от w до отрезка (a,b) (не прямой)
      */
     distToSegment: function (a, b, w) {
       return Math.sqrt(distToSegmentSquared(w, a, b));
@@ -117,7 +117,11 @@ var helpers = (function () {
     distToHeight: function (a, b, s, e) {
       var distStartEnd = dist2(s, e);
       var distEndSegm = distToSegmentSquared(e, a, b);
-      console.info([distStartEnd, distEndSegm].join());
+      console.info(['start-end:'+distStartEnd.toFixed(4), 'end-segm:'+distEndSegm.toFixed(4)].join());
+      if (distEndSegm > distStartEnd){
+        console.warn('!');
+        return 0;
+      }
       return Math.sqrt(distStartEnd - distEndSegm);
     },
     /**
@@ -147,7 +151,7 @@ var helpers = (function () {
 
     /**
      *
-     * @returns {Boolean} Точки w и v с одной стороны от отрезка (a,b)
+     * @returns {Boolean} Точки w и v с одной стороны от прямой ab
      */
     onOneSide: function (a, b, w, v) {
       var wOnLeft = helpers.isLeft(a, b, w);
@@ -156,7 +160,7 @@ var helpers = (function () {
     },
     /**
      * @see http://math.stackexchange.com/questions/436767/move-point-a-along-a-line
-     * @returns Точка на расстоянии d от точки a на отрезке (a,b)
+     * @returns Точка на расстоянии d от точки a на прямой ab
      */
     movePointAlongLine: function (a, b, d) {
       var k = d / Math.sqrt(dist2(a, b));
