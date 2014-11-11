@@ -46,6 +46,7 @@ var editor = (function () {
     pointY: 0,
     edgePoints: 0,
     edgeLength: 0,
+    edgeGroup: 0,
     currentState: 0
   };
   /**
@@ -70,34 +71,45 @@ var editor = (function () {
    */
   var showInfo = function (element) {
     if (!element) {
-      dashboard.elementId.value = '';
-      dashboard.pointX.value = '';
-      dashboard.pointY.value = '';
-      dashboard.edgeLength.value = '';
-      dashboard.edgePoints.value = '';
+      hide(dashboard.edgeLength);
+      hide(dashboard.edgePoints);
+      hide(dashboard.edgeGroup);
+      hide(dashboard.pointType);
+      hide(dashboard.pointX);
+      hide(dashboard.pointY);
       return;
     }
     if (element instanceof mechanism.elements.Point) {
       dashboard.elementName.innerHTML = 'Пара';
-      dashboard.edgeLength.style.display = "none";
-      dashboard.edgePoints.style.display = "none";
-      dashboard.pointType.style.display = "block";
-      dashboard.pointX.style.display = "block";
-      dashboard.pointY.style.display = "block";
+      hide(dashboard.edgeLength);
+      hide(dashboard.edgePoints);
+      hide(dashboard.edgeGroup);
+      show(dashboard.pointType);
+      show(dashboard.pointX);
+      show(dashboard.pointY);
       dashboard.pointX.value = element.x.toFixed(3);
       dashboard.pointY.value = element.y.toFixed(3);
       dashboard.pointType.selectedIndex = element.type;
     } else if (element instanceof mechanism.elements.Edge) {
-      dashboard.elementName.innerHTML = 'Звено';
-      dashboard.edgeLength.style.display = "block";
-      dashboard.edgePoints.style.display = "block";
-      dashboard.pointType.style.display = "none";
-      dashboard.pointX.style.display = "none";
-      dashboard.pointY.style.display = "none";
+      dashboard.elementName.innerHTML = 'Ребро';
+      show(dashboard.edgeLength);
+      show(dashboard.edgePoints);
+      show(dashboard.edgeGroup);
+      hide(dashboard.pointType);
+      hide(dashboard.pointX);
+      hide(dashboard.pointY);
       dashboard.edgeLength.value = element.getLength().toFixed(3);
-      dashboard.edgePoints.value = element.p1.id + '   ' + element.p2.id;
+      dashboard.edgePoints.value = element.p1.id + ', ' + element.p2.id;
+      dashboard.edgeGroup.value = element.gr.id;
     }
     dashboard.elementId.value = element.id;
+  };
+
+  var show = function (element) {
+    element.style.display = "block";
+  };
+  var hide = function (element) {
+    element.style.display = "none";
   };
   /**
    * Инициализатор редактора.
@@ -122,6 +134,7 @@ var editor = (function () {
       dashboard.pointY = document.getElementById("point-y");
       dashboard.edgePoints = document.getElementById("edge-points");
       dashboard.edgeLength = document.getElementById("edge-length");
+      dashboard.edgeGroup = document.getElementById("edge-group");
       dashboard.elementId = document.getElementById("element-id");
       dashboard.elementName = document.getElementById("element-name");
       dashboard.currentState = document.getElementById("current-state");
@@ -144,16 +157,15 @@ var editor = (function () {
       controls.debug.click();
 
       controls.stop.disabled = true;
-      controls.pause.disabled = true;      
-      
+      controls.pause.disabled = true;
+
       box2d.get.world().paused = false;
       loop.setSimulate(true);
-      
-      
+      controls.stop.parentNode.removeChild(controls.stop);
+
       loop.process();
       var save = "1,p,22.667,7.467,2,9,12\n2,p,28.733,7.000,2,6,12\n3,p,21.933,3.600,2,9\n4,p,29.600,2.400,2,6\n5,g,6\n6,e,4,2,5\n9,e,1,3,10\n10,g,9\n11,g,12\n12,e,2,1,11";
       mechanism.state.load(save);
-      controls.play.click();
     },
     callbacks: function () {
       var canvasPosition = helpers.getElementPosition(canvas);
@@ -277,13 +289,13 @@ var editor = (function () {
       document.onkeyup = function key(e) {
         if (document.activeElement == document.getElementsByTagName('body')[0]) // otherwise serve input
           switch (e.keyCode) {
-          case keyCodes.DEL:
-            mechanism.handlers.onDelete();
-            break;
-          case keyCodes.A:
-            mechanism.handlers.onAKeyUp();
-            break;
-          }
+        case keyCodes.DEL:
+          mechanism.handlers.onDelete();
+          break;
+        case keyCodes.A:
+          mechanism.handlers.onAKeyUp();
+          break;
+        }
       };
     }
   };
