@@ -930,10 +930,11 @@ var mechanism = (function () {
        */
       onClick: function (mouse) {
         if (canAdd && !currentBody) { // не нашлось тела
+          var selectedLength = selectedElements.length;
           selectedElements = [];
 
           // была выделена 0 или 1 точка - добавляем точку
-          if (selectedElements.length < 2) {
+          if (selectedLength < 2) {
             var newPoint = createPoint({
               x: mouse.x,
               y: mouse.y
@@ -1002,7 +1003,7 @@ var mechanism = (function () {
       onAKeyUp: function () {
         if (canAdd) {
           connectPoints(selectedElements.filter(function (e) {
-            return e.isPoint;
+            return e.isPoint();
           }));
         }
       }
