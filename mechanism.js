@@ -783,8 +783,8 @@ var mechanism = (function () {
     var body = box2d.addToWorld(edge, 2);
     edge.body = body;
 
-    edge.join(options.p1, options.p1.type == pointTypes.clockwise);
-    edge.join(options.p2, options.p2.type == pointTypes.clockwise);
+    edge.join(options.p1, options.p1.type == pointTypes.clockwise && !paused);
+    edge.join(options.p2, options.p2.type == pointTypes.clockwise && !paused);
     return edge;
   };
   /**
