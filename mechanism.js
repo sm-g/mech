@@ -214,6 +214,7 @@ var mechanism = (function () {
   };
   /**
    * Меняет тип точки
+   * @param {Number} type
    */
   Point.prototype.setType = function (type) {
     if (type != this.type) {
@@ -464,10 +465,8 @@ var mechanism = (function () {
   Edge.prototype.correctLenght = function (originalPoints, dL) {
     if (this.invisible)
       return;
-    //    grRestoreInfo = [{
     var grEdges = _.without(this.gr.getRealEdges(), this);
     console.log('edges ' + idsOf(grEdges));
-    //    }];
     var p2 = this.p2;
     var p1 = this.p1;
     var newp1 = helpers.movePointAlongLine(originalPoints[0], originalPoints[1], -dL);
@@ -614,7 +613,7 @@ var mechanism = (function () {
   /**
    * Добавляет ребро к группе.
    *
-   * @param edge
+   * @param {Edge} edge
    */
   Group.prototype.add = function (edge) {
     console.log('add e ' + edge.id + ' to gr ' + this.id);
@@ -636,7 +635,7 @@ var mechanism = (function () {
   /**
    * Убирает ребро из группы.
    *
-   * @param edge
+   * @param {Edge} edge
    */
   Group.prototype.remove = function (edge) {
     console.log('remove e ' + edge.id + ' from gr ' + this.id);

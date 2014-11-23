@@ -12,8 +12,8 @@ var box2d = (function () {
      * Добавляет в мир тело для соответствующей фигуры.
      *
      * @memberOf box2d
-     * @param element
-     * @param type Точка (1) или ребро (2)
+     * @param {Element} element
+     * @param {Number} type Точка (1) или ребро (2)
      * @returns Созданное тело.
      */
     addToWorld: function (element, type) {
@@ -48,6 +48,8 @@ var box2d = (function () {
       /**
        * Создает мир.
        *
+       * @param {Object} ctx_   Draw context
+       * @param {Object} scale_ Draw scale
        * @memberOf create
        */
       world: function (ctx_, scale_) {
@@ -71,7 +73,7 @@ var box2d = (function () {
       /**
        * Создает body definition для фигуры.
        *
-       * @param shape
+       * @param {Shape} shape
        * @returns body definition
        */
       bodyDef: function (shape) {
@@ -91,7 +93,7 @@ var box2d = (function () {
     },
     get: {
       /**
-       * @param b
+       * @param {b2Body} b
        * @returns Параметры тела: координаты, угол, центр, id-элемента
        * @memberOf get
        */
@@ -108,7 +110,8 @@ var box2d = (function () {
         };
       },
       /**
-       * @param dynamicOnly
+       * @param mouse
+       * @param {Boolean} dynamicOnly
        *          Флаг поиска только нестатических тел.
        * @returns Тело, на которое указывает мышь.
        */
@@ -160,12 +163,16 @@ var box2d = (function () {
     },
     set: {
       /**
-       *
+       * @param {Number} newScale
        * @memberOf set
        */
       scale: function (newScale) {
         scale = newScale;
       },
+      /**
+       *
+       * @param   {Function} filterFunction
+       */
       collideFilter: function (filterFunction) {
         var filter = new b2ContactFilter();
         filter.ShouldCollide = function (fixtureA, fixtureB) {
@@ -176,6 +183,10 @@ var box2d = (function () {
 
         world.SetContactFilter(filter);
       },
+      /**
+       *
+       * @param {Boolean} debug
+       */
       debug: function (debug) {
         if (debug) {
           var debugDraw = new b2DebugDraw();
