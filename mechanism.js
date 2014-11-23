@@ -58,10 +58,10 @@ var mechanism = (function () {
    * @constructor
    */
   var Shape = function (options) {
-    this.id = options.id || helpers.counter(); // автоинкремент
-    this.x = options.x || 0;
-    this.y = options.y || 0;
-    this.angle = options.angle || 0;
+    this.id = +options.id || helpers.counter(); // автоинкремент
+    this.x = +options.x || 0;
+    this.y = +options.y || 0;
+    this.angle = +options.angle || 0;
     this.color = helpers.randomColor();
     this.center = { // центр масс, для симметричных тел совпадает с x,y
       x: null,
@@ -175,7 +175,7 @@ var mechanism = (function () {
    */
   var Point = function (options) {
     Element.apply(this, arguments);
-    this.type = options.type || pointTypes.joint;
+    this.type = +options.type || pointTypes.joint;
     this.isStatic = (this.type != pointTypes.joint);
     this.radius = options.radius || 1;
     this.edges = [];
@@ -190,6 +190,16 @@ var mechanism = (function () {
     })).join();
     return [this.id, 'p', this.x.toFixed(3), this.y.toFixed(3), this.type,
         edgesStr].join();
+  };
+  Point.prototype.toJSON = function () {
+    return {
+      p: {
+        id: this.id,
+        x: this.x.toFixed(3),
+        y: this.y.toFixed(3),
+        type: this.type
+      }
+    };
   };
   Point.prototype.setPosition = function (x, y) {
     if (x < 0) x = 0;
@@ -408,22 +418,35 @@ var mechanism = (function () {
     this.x = middle.x;
     this.y = middle.y;
 
-    var gr = options.gr || new Group();
+    var gr = options.gr;
     console.info('add from ctor e ' + this.id + ' to gr ' + gr.id);
     gr.add(this);
     console.info('created ' + this);
   };
   Edge.prototype = Object.create(Element.prototype);
+  Edge.prototype.width = 0.2;
+
   Edge.prototype.toString = function () {
     return [this.id, 'e', this.p1.id, this.p2.id, this.gr.id].join();
   };
+  Edge.prototype.toJSON = function () {
+    return {
+      e: {
+        id: this.id,
+        p1: this.p1.id,
+        p2: this.p2.id,
+        gr: this.gr.id
+      }
+    };
+  };
+
   Edge.prototype.getMiddle = function () {
     return {
       x: this.x,
       y: this.y
     };
   };
-  Edge.prototype.width = 0.2;
+
   Edge.prototype.select = function () {
     if (!this.invisible)
       Element.prototype.select.call(this);
@@ -578,7 +601,7 @@ var mechanism = (function () {
    * @memberOf mechanism
    */
   var Group = function (options) {
-    this.id = (options && options.id) || helpers.counter();
+    this.id = (options && +options.id) || helpers.counter();
     this.edges = [];
     grs.push(this);
     if (options instanceof Array) {
@@ -651,7 +674,13 @@ var mechanism = (function () {
     var edgesStr = idsOf(this.getRealEdges()).join();
     return [this.id, 'g', edgesStr].join();
   };
-
+  Group.prototype.toJSON = function () {
+    return {
+      g: {
+        id: this.id
+      }
+    };
+  };
   /**
    * Звено выделено, когда выбраны все его пары.
    *
@@ -756,7 +785,6 @@ var mechanism = (function () {
    * @returns Новая точка
    */
   var createPoint = function (options) {
-    options.radius = 1;
     var point = new Point(options);
     var body = box2d.addToWorld(point, 1);
     point.body = body;
@@ -769,6 +797,13 @@ var mechanism = (function () {
    * @returns Новое ребро между точками (если создано)
    */
   var createEdge = function (options) {
+    if (_.isNumber(options.p1)) {
+      options.p1 = mechanism.elements.get(options.p1);
+    }
+    if (_.isNumber(options.p2)) {
+      options.p2 = mechanism.elements.get(options.p2);
+    }
+
     // не создавать ребро
     if (options.p1 == options.p2)
       return;
@@ -777,6 +812,14 @@ var mechanism = (function () {
     if (exist) {
       return;
     }
+
+    // options.gr - id группы, группа или undefined
+    if (_.isNumber(options.gr))
+      options.gr = _.findWhere(grs, {
+        id: options.gr
+      });
+    if (options.gr === undefined)
+      options.gr = new Group();
 
     var edge = new Edge(options);
     var body = box2d.addToWorld(edge, 2);
@@ -1269,20 +1312,61 @@ var mechanism = (function () {
           alert('Ошибка при загрузке механизма. ' + e.name);
         }
       },
+      loadJSON: function (newState) {
+        var i;
+        mechanism.state.clear();
+
+        try {
+          var mech = JSON.parse(newState);
+          var points = _.compact(_.pluck(mech, "p"));
+          var groups = _.compact(_.pluck(mech, "g"));
+          var edges = _.compact(_.pluck(mech, "e"));
+
+          // сначала добавляем точки и группы
+          for (i in points) {
+            createPoint(points[i]);
+          }
+          // добавляем группы
+          for (i in groups) {
+            new Group(groups[i]);
+          }
+          // добавляем рёбра между точками
+          for (i in edges) {
+            createEdge(edges[i]);
+          }
+
+          var last = _.last(mech);
+          var lastId = last[Object.keys(last)[0]].id;
+
+          helpers.setCounter(lastId + 1);
+        } catch (e) {
+          alert('Ошибка при загрузке механизма. ' + e.name);
+        }
+      },
       /**
        * @returns Механизм в виде строки.
        */
       save: function () {
-        var str = '';
         var sorted = _.sortBy(getEntities().filter(Edge.prototype.isRealFilter), "id");
+        var str = '';
         for (var i in sorted) {
           str += sorted[i].toString() + '\n';
         }
-
         return str;
       },
+      /**
+       * @returns Механизм в виде строки.
+       */
+      toJSON: function () {
+        var sorted = _.sortBy(getEntities().filter(Edge.prototype.isRealFilter), "id");
+        var mech = [];
+        for (var i in sorted) {
+          mech.push(sorted[i]);
+        }
+        return JSON.stringify(mech);
+      },
       reload: function () {
-        mechanism.state.load(mechanism.state.save());
+        mechanism.state.loadJSON(mechanism.state.toJSON());
       }
     }
   };
