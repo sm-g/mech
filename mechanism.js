@@ -175,7 +175,7 @@ var mechanism = (function () {
    */
   var Point = function (options) {
     Element.apply(this, arguments);
-    this.type = +options.type || pointTypes.joint;
+    this.type = +options.type;
     this.isStatic = (this.type != pointTypes.joint);
     this.radius = options.radius || 1;
     this.edges = [];
@@ -962,6 +962,7 @@ var mechanism = (function () {
             }
           }
           origEdgePoints = [];
+          adorners = [];
           return element;
         }
       },
@@ -1052,17 +1053,18 @@ var mechanism = (function () {
     },
     get: {
       /**
-       * @returns Должны ли сталкиваться два элемента. Сталкиваются соединённые
-       *          ребро и точка.
+       * @returns Должны ли сталкиваться два элемента.
        */
       collideFilter: function (id1, id2) {
         var e1 = mechanism.elements.get(id1);
         var e2 = mechanism.elements.get(id2);
-        var edge, point;
+        var edge, point, edge2;
         if (e1 instanceof mechanism.elements.Edge) {
           edge = e1;
           if (e2 instanceof mechanism.elements.Point) {
             point = e2;
+          } else if (e2 instanceof mechanism.elements.Edge) {
+            edge2 = e2;
           }
         } else if (e2 instanceof mechanism.elements.Edge) {
           edge = e2;
@@ -1071,7 +1073,10 @@ var mechanism = (function () {
           }
         }
         if (point && edge) {
-          return point.edges.indexOf(edge) != -1;
+          return _.contains(point.edges, edge); // соединенные ребро и точка
+        }
+        if (edge && edge2) {
+          // return true; // два ребра
         }
 
         return false;
@@ -1354,9 +1359,6 @@ var mechanism = (function () {
         }
         return str;
       },
-      /**
-       * @returns Механизм в виде строки.
-       */
       toJSON: function () {
         var sorted = _.sortBy(getEntities().filter(Edge.prototype.isRealFilter), "id");
         var mech = [];
